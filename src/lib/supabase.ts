@@ -5,6 +5,54 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Database types
+export interface Category {
+  id: string
+  name: string
+  description?: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface MenuItem {
+  id: string
+  category_id: string
+  name: string
+  description?: string
+  price: number
+  image_url?: string
+  is_available: boolean
+  is_featured: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+  category?: Category
+}
+
+export interface Order {
+  id: string
+  customer_name?: string
+  customer_phone?: string
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
+  total_amount: number
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  menu_item_id: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  created_at: string
+  menu_item?: MenuItem
+}
+
 // Types for our database
 export type Database = {
   public: {
