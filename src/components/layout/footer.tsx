@@ -5,7 +5,7 @@ export function Footer() {
         <div className="text-center">
           <div className="w-16 h-px bg-gray-300 mx-auto mb-6"></div>
           <p className="text-gray-500 font-light tracking-wide">
-            © 2024 Baithak In Bir. Crafted with care for exceptional dining experiences.
+            © 2025 Baithak In Bir. Crafted with love and care.
           </p>
         </div>
       </div>
