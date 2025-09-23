@@ -53,141 +53,134 @@ export interface OrderItem {
   menu_item?: MenuItem
 }
 
-// Types for our database
-export type Database = {
-  public: {
-    Tables: {
-      users: {
-        Row: {
-          id: string
-          email: string
-          role: 'owner' | 'staff'
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          email: string
-          role?: 'owner' | 'staff'
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          role?: 'owner' | 'staff'
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      menu_items: {
-        Row: {
-          id: string
-          name: string
-          description: string
-          price: number
-          image_url: string | null
-          category: string
-          is_available: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description: string
-          price: number
-          image_url?: string | null
-          category: string
-          is_available?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string
-          price?: number
-          image_url?: string | null
-          category?: string
-          is_available?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      orders: {
-        Row: {
-          id: string
-          customer_name: string | null
-          customer_phone: string | null
-          status: 'received' | 'preparing' | 'ready' | 'completed'
-          total_amount: number
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          customer_name?: string | null
-          customer_phone?: string | null
-          status?: 'received' | 'preparing' | 'ready' | 'completed'
-          total_amount: number
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          customer_name?: string | null
-          customer_phone?: string | null
-          status?: 'received' | 'preparing' | 'ready' | 'completed'
-          total_amount?: number
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      inventory_items: {
-        Row: {
-          id: string
-          name: string
-          unit: string
-          current_stock: number
-          minimum_stock: number
-          cost_per_unit: number
-          supplier: string | null
-          last_restocked: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          unit: string
-          current_stock: number
-          minimum_stock: number
-          cost_per_unit: number
-          supplier?: string | null
-          last_restocked?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          unit?: string
-          current_stock?: number
-          minimum_stock?: number
-          cost_per_unit?: number
-          supplier?: string | null
-          last_restocked?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
+// API Functions
+export const menuAPI = {
+  // Fetch all categories with their menu items
+  async getMenuWithCategories() {
+    console.log('Fetching categories from Supabase...')
+    const { data: categories, error: categoriesError } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+
+    if (categoriesError) {
+      console.error('Categories error:', categoriesError)
+      throw categoriesError
     }
+
+    console.log('Categories fetched:', categories?.length || 0)
+
+    console.log('Fetching menu items from Supabase...')
+    const { data: menuItems, error: itemsError } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('is_available', true)
+      .order('display_order', { ascending: true })
+
+    if (itemsError) {
+      console.error('Menu items error:', itemsError)
+      throw itemsError
+    }
+
+    console.log('Menu items fetched:', menuItems?.length || 0)
+
+    return { categories: categories || [], menuItems: menuItems || [] }
+  },
+
+  // Fetch categories only
+  async getCategories() {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  },
+
+  // Fetch menu items by category
+  async getMenuItemsByCategory(categoryId: string) {
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('category_id', categoryId)
+      .eq('is_available', true)
+      .order('display_order', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  }
+}
+
+export const orderAPI = {
+  // Create a new order
+  async createOrder(orderData: {
+    customer_name: string
+    customer_phone: string
+    total_amount: number
+    notes?: string
+    items: Array<{
+      menu_item_id: string
+      quantity: number
+      unit_price: number
+      total_price: number
+    }>
+  }) {
+    // Create the order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        customer_name: orderData.customer_name,
+        customer_phone: orderData.customer_phone,
+        total_amount: orderData.total_amount,
+        notes: orderData.notes,
+        status: 'pending'
+      })
+      .select()
+      .single()
+
+    if (orderError) throw orderError
+
+    // Create order items
+    const orderItems = orderData.items.map(item => ({
+      order_id: order.id,
+      menu_item_id: item.menu_item_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.total_price
+    }))
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems)
+
+    if (itemsError) throw itemsError
+
+    return order
+  },
+
+  // Get order by ID with items
+  async getOrderById(orderId: string) {
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single()
+
+    if (orderError) throw orderError
+
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        menu_item:menu_items(*)
+      `)
+      .eq('order_id', orderId)
+
+    if (itemsError) throw itemsError
+
+    return { ...order, items: orderItems || [] }
   }
 }

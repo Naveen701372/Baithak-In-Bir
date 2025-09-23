@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Plus, Minus, ShoppingCart } from 'lucide-react'
-import { supabase, Category, MenuItem } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase, Category, MenuItem, menuAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
 
 // Mock data for development (will be replaced with real data)
@@ -54,7 +55,7 @@ interface CartItem extends MenuItem {
   quantity: number
 }
 
-// Animation variants for different food types
+// Subtle character animations - gentle "hello" with personality
 const getAnimationVariants = (categoryName: string, itemName: string) => {
   if (categoryName === 'Hot Beverages') {
     return {
@@ -65,19 +66,20 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.05, 1],
-        rotate: [0, -2, 2, -1, 1, 0],
-        y: [0, -3, 0],
+        scale: [1, 1.06, 0.98, 1.03, 1],
+        rotate: [0, -3, 3, -1.5, 1.5, 0],
+        y: [0, -4, 1, -2, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
-          "drop-shadow(-5px 15px 25px rgba(20,184,166,0.3))",
-          "drop-shadow(5px 15px 25px rgba(20,184,166,0.3))",
+          "drop-shadow(-6px 16px 26px rgba(20,184,166,0.3))",
+          "drop-shadow(6px 16px 26px rgba(20,184,166,0.3))",
+          "drop-shadow(-3px 18px 28px rgba(20,184,166,0.25))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 3,
+          duration: 3.2,
           repeat: Infinity,
-          repeatDelay: 2,
+          repeatDelay: 2.5,
           ease: "easeInOut"
         }
       }
@@ -93,19 +95,20 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.08, 1],
-        rotate: [0, 3, -3, 0],
-        y: [0, -5, 0],
+        scale: [1, 1.08, 0.96, 1.04, 1],
+        rotate: [0, 4, -4, 2, -2, 0],
+        y: [0, -6, 2, -3, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
-          "drop-shadow(-8px 18px 30px rgba(6,182,212,0.4))",
-          "drop-shadow(8px 18px 30px rgba(6,182,212,0.4))",
+          "drop-shadow(-8px 18px 30px rgba(6,182,212,0.35))",
+          "drop-shadow(8px 18px 30px rgba(6,182,212,0.35))",
+          "drop-shadow(-4px 20px 32px rgba(6,182,212,0.3))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 2.5,
+          duration: 2.8,
           repeat: Infinity,
-          repeatDelay: 1.5,
+          repeatDelay: 2,
           ease: "easeInOut"
         }
       }
@@ -121,21 +124,22 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.1, 0.95, 1.05, 1],
-        rotate: [0, -5, 5, -3, 3, 0],
-        y: [0, -8, 2, -4, 0],
+        scale: [1, 1.1, 0.94, 1.05, 0.98, 1.02, 1],
+        rotate: [0, -5, 5, -3, 3, -1, 1, 0],
+        y: [0, -8, 3, -5, 1, -2, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
           "drop-shadow(-10px 20px 35px rgba(236,72,153,0.3))",
           "drop-shadow(10px 20px 35px rgba(236,72,153,0.3))",
-          "drop-shadow(0 25px 40px rgba(236,72,153,0.2))",
+          "drop-shadow(-6px 22px 37px rgba(236,72,153,0.25))",
+          "drop-shadow(6px 22px 37px rgba(236,72,153,0.25))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 4,
+          duration: 3.5,
           repeat: Infinity,
-          repeatDelay: 2.5,
-          ease: "easeInOut"
+          repeatDelay: 2.2,
+          ease: [0.25, 0.46, 0.45, 0.94]
         }
       }
     }
@@ -150,19 +154,20 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.06, 1],
-        rotate: [0, 1, -1, 2, -2, 0],
-        y: [0, -2, 0, -4, 0],
+        scale: [1, 1.07, 0.97, 1.03, 1],
+        rotate: [0, 2, -2, 1, -1, 0],
+        y: [0, -3, 1, -2, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
-          "drop-shadow(-6px 16px 28px rgba(251,191,36,0.4))",
-          "drop-shadow(6px 16px 28px rgba(251,191,36,0.4))",
+          "drop-shadow(-7px 17px 28px rgba(251,191,36,0.4))",
+          "drop-shadow(7px 17px 28px rgba(251,191,36,0.4))",
+          "drop-shadow(-4px 19px 30px rgba(251,191,36,0.3))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 2.8,
+          duration: 2.5,
           repeat: Infinity,
-          repeatDelay: 1.8,
+          repeatDelay: 2.8,
           ease: "easeInOut"
         }
       }
@@ -178,19 +183,20 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.04, 1.02, 1],
-        rotate: [0, -1, 1, 0],
-        y: [0, -3, 0],
+        scale: [1, 1.05, 0.98, 1.02, 1],
+        rotate: [0, -2, 2, -1, 1, 0],
+        y: [0, -4, 1, -2, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
-          "drop-shadow(-7px 17px 30px rgba(34,197,94,0.3))",
-          "drop-shadow(7px 17px 30px rgba(34,197,94,0.3))",
+          "drop-shadow(-6px 18px 30px rgba(34,197,94,0.3))",
+          "drop-shadow(6px 18px 30px rgba(34,197,94,0.3))",
+          "drop-shadow(-3px 20px 32px rgba(34,197,94,0.25))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 3.2,
+          duration: 3.8,
           repeat: Infinity,
-          repeatDelay: 2.2,
+          repeatDelay: 2.5,
           ease: "easeInOut"
         }
       }
@@ -206,17 +212,18 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
         filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       },
       animate: {
-        scale: [1, 1.07, 1],
-        rotate: [0, -3, 3, -1, 1, 0],
-        y: [0, -6, 0],
+        scale: [1, 1.08, 0.96, 1.04, 1],
+        rotate: [0, -4, 4, -2, 2, 0],
+        y: [0, -6, 2, -3, 0],
         filter: [
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
-          "drop-shadow(-9px 19px 32px rgba(249,115,22,0.4))",
-          "drop-shadow(9px 19px 32px rgba(249,115,22,0.4))",
+          "drop-shadow(-8px 19px 32px rgba(249,115,22,0.4))",
+          "drop-shadow(8px 19px 32px rgba(249,115,22,0.4))",
+          "drop-shadow(-4px 21px 34px rgba(249,115,22,0.3))",
           "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
         ],
         transition: {
-          duration: 3.5,
+          duration: 3.2,
           repeat: Infinity,
           repeatDelay: 2.8,
           ease: "easeInOut"
@@ -225,7 +232,7 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
     }
   }
   
-  // Today's Special
+  // Today's Special - slightly more special but still elegant
   return {
     idle: {
       scale: 1,
@@ -234,21 +241,23 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
       filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
     },
     animate: {
-      scale: [1, 1.12, 1],
-      rotate: [0, -4, 4, -2, 2, 0],
-      y: [0, -10, 0],
+      scale: [1, 1.12, 0.92, 1.06, 0.98, 1.03, 1],
+      rotate: [0, -6, 6, -3, 3, -1, 1, 0],
+      y: [0, -10, 3, -6, 1, -3, 0],
       filter: [
         "drop-shadow(0 10px 20px rgba(0,0,0,0.1))",
         "drop-shadow(-12px 22px 40px rgba(168,85,247,0.4))",
         "drop-shadow(12px 22px 40px rgba(168,85,247,0.4))",
-        "drop-shadow(0 30px 50px rgba(168,85,247,0.3))",
+        "drop-shadow(-8px 25px 42px rgba(168,85,247,0.35))",
+        "drop-shadow(8px 25px 42px rgba(168,85,247,0.35))",
+        "drop-shadow(-4px 20px 35px rgba(168,85,247,0.3))",
         "drop-shadow(0 10px 20px rgba(0,0,0,0.1))"
       ],
       transition: {
-        duration: 4.5,
+        duration: 4,
         repeat: Infinity,
-        repeatDelay: 3,
-        ease: "easeInOut"
+        repeatDelay: 3.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   }
@@ -383,44 +392,88 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
 }
 
 export default function MenuPage() {
+  const router = useRouter()
   const [categories, setCategories] = useState<Category[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // For now, use mock data. Later we'll fetch from Supabase
-    setCategories(mockCategories)
-    setMenuItems(mockMenuItems)
-    setLoading(false)
+    const fetchMenuData = async () => {
+      try {
+        console.log('Fetching menu data from database...')
+        const { categories, menuItems } = await menuAPI.getMenuWithCategories()
+        
+        if (categories.length > 0 && menuItems.length > 0) {
+          console.log('Successfully fetched from database:', { categories: categories.length, menuItems: menuItems.length })
+          setCategories(categories)
+          setMenuItems(menuItems)
+        } else {
+          console.log('Database returned empty results, using mock data')
+          setCategories(mockCategories)
+          setMenuItems(mockMenuItems)
+        }
+      } catch (error) {
+        console.error('Error fetching menu data from database:', error)
+        console.log('Falling back to mock data')
+        // Fallback to mock data if database fetch fails
+        setCategories(mockCategories)
+        setMenuItems(mockMenuItems)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMenuData()
+
+    // Load cart from localStorage
+    const savedCart = localStorage.getItem('baithak-cart')
+    if (savedCart) {
+      setCart(JSON.parse(savedCart))
+    }
   }, [])
 
   const addToCart = (item: MenuItem) => {
-    setCart(prev => {
-      const existing = prev.find(cartItem => cartItem.id === item.id)
+    const category = categories.find(cat => cat.id === item.category_id)
+    const cartItem = {
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      category_name: category?.name || 'Unknown',
+      category_id: item.category_id
+    }
+    
+    const newCart = (() => {
+      const existing = cart.find(cartItem => cartItem.id === item.id)
       if (existing) {
-        return prev.map(cartItem =>
+        return cart.map(cartItem =>
           cartItem.id === item.id
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
         )
       }
-      return [...prev, { ...item, quantity: 1 }]
-    })
+      return [...cart, { ...cartItem, quantity: 1 }]
+    })()
+    
+    setCart(newCart)
+    localStorage.setItem('baithak-cart', JSON.stringify(newCart))
   }
 
   const removeFromCart = (itemId: string) => {
-    setCart(prev => {
-      const existing = prev.find(cartItem => cartItem.id === itemId)
+    const newCart = (() => {
+      const existing = cart.find(cartItem => cartItem.id === itemId)
       if (existing && existing.quantity > 1) {
-        return prev.map(cartItem =>
+        return cart.map(cartItem =>
           cartItem.id === itemId
             ? { ...cartItem, quantity: cartItem.quantity - 1 }
             : cartItem
         )
       }
-      return prev.filter(cartItem => cartItem.id !== itemId)
-    })
+      return cart.filter(cartItem => cartItem.id !== itemId)
+    })()
+    
+    setCart(newCart)
+    localStorage.setItem('baithak-cart', JSON.stringify(newCart))
   }
 
   const getItemQuantity = (itemId: string) => {
@@ -533,6 +586,7 @@ export default function MenuPage() {
               </div>
             </div>
             <motion.button 
+              onClick={() => router.push('/cart')}
               className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
