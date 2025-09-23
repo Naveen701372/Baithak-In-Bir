@@ -54,7 +54,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
             <FileText size={32} className="text-red-500" />
           </div>
           <h1 className="text-2xl font-light text-black mb-2">Order Not Found</h1>
-          <p className="text-gray-600 mb-8">We couldn't find the order you're looking for.</p>
+          <p className="text-gray-600 mb-8">We couldn&apos;t find the order you&apos;re looking for.</p>
           <motion.button
             onClick={() => router.push('/menu')}
             className="bg-black text-white px-8 py-3 font-light tracking-wide hover:bg-gray-800 transition-colors"
@@ -171,7 +171,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
         >
           <h3 className="text-lg font-light text-black mb-4">Order Items</h3>
           <div className="space-y-4">
-            {order.items.map((item, index) => (
+            {order.items.map((item) => (
               <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
                 <div className="flex-1">
                   <h4 className="font-light text-black">{item.menu_item?.name || 'Unknown Item'}</h4>
@@ -199,10 +199,10 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <h3 className="text-lg font-light text-black mb-3">What's Next?</h3>
+          <h3 className="text-lg font-light text-black mb-3">What&apos;s Next?</h3>
           <div className="space-y-2 text-sm text-gray-700">
-            <p>• We've received your order and will start preparing it shortly</p>
-            <p>• You'll be notified when your order is ready</p>
+            <p>• We&apos;ve received your order and will start preparing it shortly</p>
+            <p>• You&apos;ll be notified when your order is ready</p>
             <p>• Estimated preparation time: 15-20 minutes</p>
           </div>
         </motion.div>

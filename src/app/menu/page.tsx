@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, Variants } from 'framer-motion'
 import { Plus, Minus, ShoppingCart } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { supabase, Category, MenuItem, menuAPI } from '@/lib/supabase'
+import { Category, MenuItem, menuAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
 
 // Mock data for development (will be replaced with real data)
@@ -24,39 +24,44 @@ const mockMenuItems: MenuItem[] = [
   { id: '2', category_id: '1', name: 'Filter Coffee', description: 'South Indian style filter coffee', price: 120, is_available: true, is_featured: true, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Filter+Coffee' },
   { id: '3', category_id: '1', name: 'Hot Tea', description: 'Classic Indian tea brewed to perfection', price: 40, is_available: true, is_featured: false, display_order: 3, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Hot+Tea' },
   { id: '4', category_id: '1', name: 'GLIH', description: 'Our signature special blend', price: 80, is_available: true, is_featured: true, display_order: 4, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=GLIH' },
-  
+
   // Cold Beverages
   { id: '5', category_id: '2', name: 'Cold Coffee', description: 'Chilled coffee with perfect blend', price: 140, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Cold+Coffee' },
   { id: '6', category_id: '2', name: 'Lemonade', description: 'Fresh lime water to quench thirst', price: 100, is_available: true, is_featured: false, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Lemonade' },
   { id: '7', category_id: '2', name: 'Iced Tea', description: 'Cool and refreshing iced tea', price: 120, is_available: true, is_featured: false, display_order: 3, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Iced+Tea' },
-  
+
   // Shakes & Smoothies
   { id: '8', category_id: '3', name: 'Oreo Shake', description: 'Indulgent Oreo cookie shake', price: 150, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Oreo+Shake' },
   { id: '9', category_id: '3', name: 'Nutella Shake', description: 'Rich and creamy Nutella shake', price: 160, is_available: true, is_featured: true, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Nutella+Shake' },
   { id: '10', category_id: '3', name: 'Banana Shake', description: 'Creamy banana shake (Add PB +₹20)', price: 130, is_available: true, is_featured: false, display_order: 3, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Banana+Shake' },
-  
+
   // Quick Bites
   { id: '11', category_id: '4', name: 'BGC Maggi', description: 'Special BGC style with extra flavors', price: 130, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=BGC+Maggi' },
   { id: '12', category_id: '4', name: 'Veggie Maggi', description: 'Maggi loaded with fresh vegetables', price: 120, is_available: true, is_featured: false, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Veggie+Maggi' },
-  
+
   // Sandwiches & Wraps
   { id: '13', category_id: '5', name: 'Paneer Wrap', description: 'Grilled paneer with spices and vegetables', price: 150, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Paneer+Wrap' },
   { id: '14', category_id: '5', name: 'Mushroom Cheese Toast', description: 'Grilled toast with mushrooms and cheese', price: 130, is_available: true, is_featured: true, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Mushroom+Toast' },
-  
+
   // Mains & Snacks
   { id: '15', category_id: '6', name: 'Tawa Burger', description: 'Grilled burger with fresh ingredients', price: 150, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Tawa+Burger' },
   { id: '16', category_id: '6', name: 'Cheesy Nachos', description: 'Crispy nachos loaded with cheese', price: 150, is_available: true, is_featured: true, display_order: 2, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Cheesy+Nachos' },
-  
+
   // Today's Special
   { id: '17', category_id: '7', name: 'Sambhar Rice', description: 'Traditional South Indian sambhar with rice', price: 180, is_available: true, is_featured: true, display_order: 1, created_at: '', updated_at: '', image_url: '/api/placeholder/300/200?text=Sambhar+Rice' },
 ]
 
-interface CartItem extends MenuItem {
+interface CartItem {
+  id: string
+  name: string
+  price: number
   quantity: number
+  category_name?: string
+  category_id?: string
 }
 
 // Subtle character animations - gentle "hello" with personality
-const getAnimationVariants = (categoryName: string, itemName: string) => {
+const getAnimationVariants = (categoryName: string): Variants => {
   if (categoryName === 'Hot Beverages') {
     return {
       idle: {
@@ -80,12 +85,12 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
           duration: 3.2,
           repeat: Infinity,
           repeatDelay: 2.5,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   }
-  
+
   if (categoryName === 'Cold Beverages') {
     return {
       idle: {
@@ -109,12 +114,12 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
           duration: 2.8,
           repeat: Infinity,
           repeatDelay: 2,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   }
-  
+
   if (categoryName === 'Shakes & Smoothies') {
     return {
       idle: {
@@ -144,7 +149,7 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
       }
     }
   }
-  
+
   if (categoryName === 'Quick Bites') {
     return {
       idle: {
@@ -168,12 +173,12 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
           duration: 2.5,
           repeat: Infinity,
           repeatDelay: 2.8,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   }
-  
+
   if (categoryName === 'Sandwiches & Wraps') {
     return {
       idle: {
@@ -197,12 +202,12 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
           duration: 3.8,
           repeat: Infinity,
           repeatDelay: 2.5,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   }
-  
+
   if (categoryName === 'Mains & Snacks') {
     return {
       idle: {
@@ -226,12 +231,12 @@ const getAnimationVariants = (categoryName: string, itemName: string) => {
           duration: 3.2,
           repeat: Infinity,
           repeatDelay: 2.8,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   }
-  
+
   // Today's Special - slightly more special but still elegant
   return {
     idle: {
@@ -272,43 +277,41 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
   quantity: number
 }) => {
   const ref = useRef(null)
-  const isInView = useInView(ref, { 
-    once: false, 
+  const isInView = useInView(ref, {
+    once: false,
     margin: "-20% 0px -20% 0px" // Trigger when item is 20% visible
   })
-  
-  const variants = getAnimationVariants(category.name, item.name)
-  
+
+  const variants = getAnimationVariants(category.name)
+
   return (
     <motion.div
       ref={ref}
-      className={`flex-shrink-0 w-72 bg-white rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 ${
-        quantity > 0 
-          ? 'border-2 border-teal-300 shadow-md ring-2 ring-teal-200' 
+      className={`flex-shrink-0 w-72 bg-white rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 ${quantity > 0
+          ? 'border-2 border-teal-300 shadow-md ring-2 ring-teal-200'
           : 'border border-gray-100'
-      }`}
+        }`}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       whileHover={{ y: -2 }}
     >
       {/* Item Image */}
-      <div className={`h-48 relative overflow-hidden transition-all duration-300 ${
-        quantity > 0 
-          ? 'bg-gradient-to-br from-teal-100 to-cyan-200' 
+      <div className={`h-48 relative overflow-hidden transition-all duration-300 ${quantity > 0
+          ? 'bg-gradient-to-br from-teal-100 to-cyan-200'
           : 'bg-gradient-to-br from-gray-50 to-gray-100'
-      }`}>
+        }`}>
         <div className="w-full h-full flex items-center justify-center">
           <motion.div
             className="cursor-pointer"
             variants={variants}
             initial="idle"
             animate={isInView ? "animate" : "idle"}
-            whileHover={{ 
+            whileHover={{
               scale: 1.15,
               rotate: [0, -8, 8, -5, 5, 0],
-              transition: { 
-                rotate: { duration: 0.8, ease: "easeInOut" },
-                scale: { duration: 0.3, ease: "easeOut" }
+              transition: {
+                rotate: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] },
+                scale: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }
               }
             }}
           >
@@ -333,16 +336,16 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
         <p className="text-gray-600 text-sm font-light leading-relaxed mb-4 line-clamp-2">
           {item.description}
         </p>
-        
+
         <div className="flex items-center justify-between">
           <span className="text-xl font-light text-black">
             ₹{item.price}
           </span>
-          
+
           {/* Add to Cart Controls */}
           <div className="flex items-center space-x-3">
             {quantity > 0 ? (
-              <motion.div 
+              <motion.div
                 className="flex items-center space-x-3"
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -356,7 +359,7 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
                 >
                   <Minus size={16} strokeWidth={2.5} />
                 </motion.button>
-                <motion.span 
+                <motion.span
                   className="text-teal-600 font-medium min-w-[24px] text-center text-lg"
                   key={quantity}
                   initial={{ scale: 1.2 }}
@@ -403,7 +406,7 @@ export default function MenuPage() {
       try {
         console.log('Fetching menu data from database...')
         const { categories, menuItems } = await menuAPI.getMenuWithCategories()
-        
+
         if (categories.length > 0 && menuItems.length > 0) {
           console.log('Successfully fetched from database:', { categories: categories.length, menuItems: menuItems.length })
           setCategories(categories)
@@ -435,15 +438,8 @@ export default function MenuPage() {
 
   const addToCart = (item: MenuItem) => {
     const category = categories.find(cat => cat.id === item.category_id)
-    const cartItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      category_name: category?.name || 'Unknown',
-      category_id: item.category_id
-    }
-    
-    const newCart = (() => {
+
+    const newCart: CartItem[] = (() => {
       const existing = cart.find(cartItem => cartItem.id === item.id)
       if (existing) {
         return cart.map(cartItem =>
@@ -452,15 +448,25 @@ export default function MenuPage() {
             : cartItem
         )
       }
-      return [...cart, { ...cartItem, quantity: 1 }]
+      
+      const newCartItem: CartItem = {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: 1,
+        category_name: category?.name || 'Unknown',
+        category_id: item.category_id
+      }
+      
+      return [...cart, newCartItem]
     })()
-    
+
     setCart(newCart)
     localStorage.setItem('baithak-cart', JSON.stringify(newCart))
   }
 
   const removeFromCart = (itemId: string) => {
-    const newCart = (() => {
+    const newCart: CartItem[] = (() => {
       const existing = cart.find(cartItem => cartItem.id === itemId)
       if (existing && existing.quantity > 1) {
         return cart.map(cartItem =>
@@ -471,7 +477,7 @@ export default function MenuPage() {
       }
       return cart.filter(cartItem => cartItem.id !== itemId)
     })()
-    
+
     setCart(newCart)
     localStorage.setItem('baithak-cart', JSON.stringify(newCart))
   }
@@ -517,7 +523,7 @@ export default function MenuPage() {
       <div className="pb-24">
         {categories.map((category, categoryIndex) => {
           const categoryItems = menuItems.filter(item => item.category_id === category.id)
-          
+
           if (categoryItems.length === 0) return null
 
           return (
@@ -541,7 +547,7 @@ export default function MenuPage() {
               {/* Horizontal Scrolling Items */}
               <div className="overflow-x-auto scrollbar-hide">
                 <div className="flex space-x-4 px-4 pb-2">
-                  {categoryItems.map((item, itemIndex) => (
+                  {categoryItems.map((item) => (
                     <AnimatedFoodItem
                       key={item.id}
                       item={item}
@@ -571,7 +577,7 @@ export default function MenuPage() {
             <div className="flex items-center space-x-3">
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                 key={getTotalItems()}
               >
                 <ShoppingCart size={20} />
@@ -585,7 +591,7 @@ export default function MenuPage() {
                 </p>
               </div>
             </div>
-            <motion.button 
+            <motion.button
               onClick={() => router.push('/cart')}
               className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
               whileTap={{ scale: 0.95 }}

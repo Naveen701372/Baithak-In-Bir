@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Plus, Minus, Trash2, User, Phone, ShoppingCart, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, User, ShoppingCart, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { orderAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'

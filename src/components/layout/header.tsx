@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Menu, Home, ShoppingCart, BarChart3 } from 'lucide-react'
+import { Menu } from 'lucide-react'
 
 export function Header() {
   return (
