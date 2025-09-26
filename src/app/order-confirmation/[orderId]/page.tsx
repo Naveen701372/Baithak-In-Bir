@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle, Clock, User, Phone, FileText } from 'lucide-react'
+import { CheckCircle, Clock, User, Phone, FileText, Receipt } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { orderAPI, Order, OrderItem } from '@/lib/supabase'
 
@@ -91,94 +91,110 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Success Header */}
-      <div className="bg-gradient-to-br from-teal-50 to-cyan-100 px-4 py-12">
+      {/* Success Header with Better Vector Art */}
+      <div className="bg-gradient-to-br from-teal-50 to-cyan-100 px-4 py-8">
         <div className="text-center">
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 200, damping: 15 }}
-            className="w-20 h-20 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-6"
+            className="relative w-24 h-24 mx-auto mb-4"
           >
-            <CheckCircle size={40} className="text-white" />
+            {/* Animated Success Icon with Background */}
+            <div className="absolute inset-0 bg-teal-500 rounded-full"></div>
+            <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+              <CheckCircle size={32} className="text-teal-500" />
+            </div>
+            {/* Animated Ring */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: 0 }}
+              transition={{ delay: 0.5, duration: 1, repeat: Infinity, repeatDelay: 2 }}
+              className="absolute inset-0 border-2 border-teal-300 rounded-full"
+            />
           </motion.div>
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.3 }}
           >
-            <h1 className="text-3xl font-light text-black mb-2">Order Placed!</h1>
-            <p className="text-gray-600 font-light">Thank you for your order</p>
+            <h1 className="text-2xl font-light text-black mb-1">Order Confirmed!</h1>
+            <p className="text-gray-600 font-light text-sm">We're preparing your delicious meal</p>
           </motion.div>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Order Status */}
-        <motion.div
-          className="bg-white border border-gray-100 rounded-lg p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-light text-black">Order #{order.id.slice(-8)}</h2>
-              <p className="text-sm text-gray-600">
-                {new Date(order.created_at).toLocaleString()}
-              </p>
-            </div>
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-              <Clock size={14} className="inline mr-1" />
-              {getStatusText(order.status)}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Customer Details */}
-        <motion.div
-          className="bg-white border border-gray-100 rounded-lg p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <h3 className="text-lg font-light text-black mb-4">Customer Details</h3>
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <User size={16} className="text-gray-400 mr-3" />
-              <span className="text-gray-700">{order.customer_name}</span>
-            </div>
-            <div className="flex items-center">
-              <Phone size={16} className="text-gray-400 mr-3" />
-              <span className="text-gray-700">{order.customer_phone}</span>
-            </div>
-            {order.notes && (
-              <div className="flex items-start">
-                <FileText size={16} className="text-gray-400 mr-3 mt-0.5" />
-                <span className="text-gray-700">{order.notes}</span>
+      <div className="p-4 space-y-4">
+        {/* Order Info & Customer Details - Side by Side */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Order Info Card */}
+          <motion.div
+            className="bg-white border border-gray-100 rounded-lg p-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="space-y-2">
+              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                <Clock size={12} className="mr-1" />
+                {getStatusText(order.status)}
               </div>
-            )}
-          </div>
-        </motion.div>
+              <div>
+                <p className="text-base font-semibold text-black">#{order.id.slice(-8)}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {new Date(order.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Customer Details Card */}
+          <motion.div
+            className="bg-white border border-gray-100 rounded-lg p-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <User size={14} className="text-teal-500 mr-2" />
+                <span className="text-sm font-medium text-black">{order.customer_name}</span>
+              </div>
+              <div className="flex items-center">
+                <Phone size={14} className="text-teal-500 mr-2" />
+                <span className="text-sm text-gray-700">{order.customer_phone}</span>
+              </div>
+              {order.notes && (
+                <div className="flex items-start">
+                  <FileText size={14} className="text-teal-500 mr-2 mt-0.5" />
+                  <span className="text-xs text-gray-700 line-clamp-2">{order.notes}</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
 
         {/* Order Items */}
         <motion.div
-          className="bg-white border border-gray-100 rounded-lg p-6"
+          className="bg-white border border-gray-100 rounded-lg p-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <h3 className="text-lg font-light text-black mb-4">Order Items</h3>
+          <h3 className="text-lg font-medium text-black mb-4 flex items-center">
+            <div className="w-3 h-3 bg-teal-500 rounded-full mr-3"></div>
+            Your Order
+          </h3>
           <div className="space-y-4">
             {order.items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
+              <div key={item.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-b-0">
                 <div className="flex-1">
-                  <h4 className="font-light text-black">{item.menu_item?.name || 'Unknown Item'}</h4>
+                  <h4 className="text-base font-medium text-black">{item.menu_item?.name || 'Unknown Item'}</h4>
                   <p className="text-sm text-gray-600">₹{item.unit_price} × {item.quantity}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-light text-black">₹{item.total_price}</p>
+                  <p className="text-base font-medium text-black">₹{item.total_price}</p>
                 </div>
               </div>
             ))}
@@ -186,32 +202,35 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex items-center justify-between">
-              <span className="text-lg font-medium text-black">Total</span>
-              <span className="text-xl font-medium text-black">₹{order.total_amount}</span>
+              <span className="text-lg font-semibold text-black">Total</span>
+              <span className="text-xl font-semibold text-teal-600">₹{order.total_amount}</span>
             </div>
           </div>
         </motion.div>
 
         {/* Next Steps */}
         <motion.div
-          className="bg-teal-50 border border-teal-100 rounded-lg p-6"
+          className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-100 rounded-lg p-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <h3 className="text-lg font-light text-black mb-3">What&apos;s Next?</h3>
+          <h3 className="text-base font-medium text-black mb-3 flex items-center">
+            <Clock size={16} className="text-teal-500 mr-2" />
+            What&apos;s Next?
+          </h3>
           <div className="space-y-2 text-sm text-gray-700">
-            <p>• We&apos;ve received your order and will start preparing it shortly</p>
-            <p>• You&apos;ll be notified when your order is ready</p>
-            <p>• Estimated preparation time: 15-20 minutes</p>
+            <p>✓ Order received and being prepared</p>
+            <p>✓ You&apos;ll be notified when ready</p>
+            <p>⏱️ Estimated time: 15-20 minutes</p>
           </div>
         </motion.div>
 
         {/* Action Buttons */}
-        <div className="space-y-3 pt-4">
+        <div className="grid grid-cols-2 gap-4 pt-4">
           <motion.button
             onClick={() => router.push('/menu')}
-            className="w-full bg-black text-white py-4 font-light tracking-wide hover:bg-gray-800 transition-colors rounded-lg"
+            className="bg-teal-600 text-white py-4 px-6 text-base font-medium tracking-wide hover:bg-teal-700 transition-colors rounded-lg"
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -222,7 +241,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           
           <motion.button
             onClick={() => router.push('/')}
-            className="w-full border border-gray-200 text-gray-700 py-4 font-light tracking-wide hover:bg-gray-50 transition-colors rounded-lg"
+            className="border border-gray-200 text-gray-700 py-4 px-6 text-base font-medium tracking-wide hover:bg-gray-50 transition-colors rounded-lg"
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
