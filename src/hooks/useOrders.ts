@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRealTimeOrders } from './useRealTimeOrders'
 
 export interface Order {
   id: string
@@ -36,6 +37,10 @@ export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [newOrderNotification, setNewOrderNotification] = useState<Order | null>(null)
+  
+  // Use real-time connection
+  const { lastEvent, isConnected } = useRealTimeOrders()
 
   // Fetch orders with items
   const fetchOrders = async () => {
@@ -74,7 +79,7 @@ export function useOrders() {
   // Update order status
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-      const updateData: any = { 
+      const updateData: Record<string, any> = { 
         status,
         updated_at: new Date().toISOString()
       }
@@ -132,6 +137,11 @@ export function useOrders() {
 
       if (error) throw error
 
+      // Find the order containing this item
+      const currentOrder = orders.find(order => 
+        order.order_items.some(item => item.id === itemId)
+      )
+
       // Update local state
       setOrders(prev => prev.map(order => ({
         ...order,
@@ -139,6 +149,25 @@ export function useOrders() {
           item.id === itemId ? { ...item, item_status: status } : item
         )
       })))
+
+      // Check if all items are ready/completed and auto-advance order status
+      if (currentOrder && (status === 'ready' || status === 'completed') && currentOrder.status === 'preparing') {
+        const updatedOrder = {
+          ...currentOrder,
+          order_items: currentOrder.order_items.map(item =>
+            item.id === itemId ? { ...item, item_status: status } : item
+          )
+        }
+        
+        const allItemsReadyOrCompleted = updatedOrder.order_items.every(item => 
+          item.item_status === 'ready' || item.item_status === 'completed'
+        )
+        
+        if (allItemsReadyOrCompleted) {
+          console.log('All items ready/completed, auto-advancing order to ready status')
+          await updateOrderStatus(currentOrder.id, 'ready')
+        }
+      }
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to update item status')
     }
@@ -153,12 +182,12 @@ export function useOrders() {
       )
       const currentItem = currentOrder?.order_items.find(item => item.id === itemId)
       
-      if (!currentItem) throw new Error('Item not found')
+      if (!currentItem || !currentOrder) throw new Error('Item not found')
       
       const newCompletedQuantity = (currentItem.completed_quantity || 0) + 1
       const isFullyCompleted = newCompletedQuantity >= currentItem.quantity
       
-      const updateData: any = {
+      const updateData: Record<string, any> = {
         completed_quantity: newCompletedQuantity
       }
       
@@ -186,6 +215,27 @@ export function useOrders() {
             : item
         )
       })))
+
+      // Check if all items in the order are now completed and auto-advance order status
+      if (isFullyCompleted && currentOrder.status === 'preparing') {
+        const updatedOrder = {
+          ...currentOrder,
+          order_items: currentOrder.order_items.map(item =>
+            item.id === itemId 
+              ? { ...item, completed_quantity: newCompletedQuantity, item_status: 'completed' as const }
+              : item
+          )
+        }
+        
+        const allItemsCompleted = updatedOrder.order_items.every(item => 
+          (item.completed_quantity || 0) >= item.quantity || item.item_status === 'completed'
+        )
+        
+        if (allItemsCompleted) {
+          console.log('All items completed, auto-advancing order to ready status')
+          await updateOrderStatus(currentOrder.id, 'ready')
+        }
+      }
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to complete item unit')
     }
@@ -271,43 +321,93 @@ export function useOrders() {
     }
   }
 
-  // Set up real-time subscription
+  // Play notification sound for new orders
+  const playNotificationSound = () => {
+    try {
+      // Create a simple notification beep using Web Audio API
+      const audioContext = new (window.AudioContext || (window as Record<string, any>).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1)
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2)
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.3)
+    } catch (error) {
+      console.log('Could not play notification sound:', error)
+    }
+  }
+
+  // Clear new order notification
+  const clearNewOrderNotification = () => {
+    setNewOrderNotification(null)
+  }
+
+  // Handle real-time events
+  useEffect(() => {
+    if (!lastEvent) return
+
+    console.log('Real-time event received:', lastEvent)
+
+    if (lastEvent.type === 'order_update' && lastEvent.order) {
+      const updatedOrder = lastEvent.order
+      
+      setOrders(prev => {
+        const existingIndex = prev.findIndex(o => o.id === updatedOrder.id)
+        
+        if (existingIndex >= 0) {
+          // Update existing order
+          const newOrders = [...prev]
+          newOrders[existingIndex] = updatedOrder
+          return newOrders
+        } else {
+          // New order - add to beginning and show notification
+          if (lastEvent.event === 'INSERT') {
+            setNewOrderNotification(updatedOrder)
+            playNotificationSound()
+            
+            // Clear notification after 5 seconds
+            setTimeout(() => setNewOrderNotification(null), 5000)
+          }
+          return [updatedOrder, ...prev]
+        }
+      })
+    } else if (lastEvent.type === 'order_item_update' && lastEvent.order) {
+      // Update order with modified items
+      const updatedOrder = lastEvent.order
+      setOrders(prev => prev.map(order => 
+        order.id === updatedOrder.id ? updatedOrder : order
+      ))
+    } else if (lastEvent.type === 'order_delete' && lastEvent.orderId) {
+      // Remove deleted order
+      setOrders(prev => prev.filter(order => order.id !== lastEvent.orderId))
+    }
+  }, [lastEvent])
+
+  // Initial fetch
   useEffect(() => {
     fetchOrders()
-
-    // Subscribe to real-time changes for both orders and order_items
-    const ordersChannel = supabase
-      .channel('orders-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('Order change:', payload)
-          fetchOrders() // Refetch orders when changes occur
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'order_items'
-        },
-        (payload) => {
-          console.log('Order item change:', payload)
-          fetchOrders() // Refetch orders when order items change
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(ordersChannel)
-    }
   }, [])
+
+  // Fallback polling if real-time is not connected
+  useEffect(() => {
+    if (!isConnected) {
+      console.log('Real-time not connected, using polling fallback')
+      const interval = setInterval(() => {
+        fetchOrders()
+      }, 10000) // Poll every 10 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [isConnected])
 
   // Get today's orders
   const todaysOrders = orders.filter(order => {
@@ -333,6 +433,10 @@ export function useOrders() {
     cancelOrder,
     updatePaymentStatus,
     getOrdersByStatus,
-    refetch: fetchOrders
+    refetch: fetchOrders,
+    // Real-time features
+    isConnected,
+    newOrderNotification,
+    clearNewOrderNotification
   }
 }

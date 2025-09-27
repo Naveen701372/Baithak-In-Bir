@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { ChefHat, CheckCircle, Filter, Clock, Play, Check, Flame, Hand } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChefHat, Filter, Play, Flame, Hand } from 'lucide-react'
 import { Order, OrderItem } from '@/hooks/useOrders'
 
 interface ItemManagementProps {
@@ -29,6 +29,8 @@ interface AggregatedItem {
 export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateItemStatus }: ItemManagementProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'preparing' | 'ready'>('all')
   const [updating, setUpdating] = useState<string | null>(null)
+  const [pickingUp, setPickingUp] = useState<string | null>(null)
+  const [exitingCards, setExitingCards] = useState<Set<string>>(new Set())
 
   // Aggregate items across all confirmed orders (not pending)
   const aggregatedItems: AggregatedItem[] = []
@@ -41,52 +43,90 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
     )
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Oldest first
     .forEach(order => {
-      order.order_items.forEach(item => {
+      order.order_items.forEach(item => { // Don't filter out completed items here - we need them for counting
         const existingItem = aggregatedItems.find(
           agg => agg.menu_item_id === item.menu_item_id
         )
         
+        // Simple and clear counting logic:
+        // - Total quantity: always add the item quantity
+        // - Completed quantity: only count if item status is 'completed' (picked up)
+        // - Pending quantity: total minus completed
+        
         if (existingItem) {
           existingItem.total_quantity += item.quantity
-          existingItem.completed_quantity += item.completed_quantity || 0
-          existingItem.pending_quantity += item.quantity - (item.completed_quantity || 0)
-          existingItem.orders.push({
-            order_id: order.id,
-            item_id: item.id,
-            customer_name: order.customer_name,
-            quantity: item.quantity,
-            completed_quantity: item.completed_quantity || 0,
-            item_status: item.item_status
-          })
-        } else {
-          aggregatedItems.push({
-            menu_item_id: item.menu_item_id,
-            name: item.menu_items.name,
-            image_url: item.menu_items.image_url,
-            total_quantity: item.quantity,
-            completed_quantity: item.completed_quantity || 0,
-            pending_quantity: item.quantity - (item.completed_quantity || 0),
-            orders: [{
+          
+          // Only count as completed if the entire order item is picked up
+          if (item.item_status === 'completed') {
+            existingItem.completed_quantity += item.quantity
+          }
+          
+          // Recalculate pending quantity
+          existingItem.pending_quantity = existingItem.total_quantity - existingItem.completed_quantity
+          
+          // Only add to orders array if not completed (for UI display)
+          if (item.item_status !== 'completed') {
+            existingItem.orders.push({
               order_id: order.id,
               item_id: item.id,
               customer_name: order.customer_name,
               quantity: item.quantity,
               completed_quantity: item.completed_quantity || 0,
               item_status: item.item_status
-            }]
+            })
+          }
+        } else {
+          // Create new aggregated item
+          const completedQty = item.item_status === 'completed' ? item.quantity : 0
+          const pendingQty = item.quantity - completedQty
+          
+          aggregatedItems.push({
+            menu_item_id: item.menu_item_id,
+            name: item.menu_items.name,
+            image_url: item.menu_items.image_url,
+            total_quantity: item.quantity,
+            completed_quantity: completedQty,
+            pending_quantity: pendingQty,
+            orders: item.item_status !== 'completed' ? [{
+              order_id: order.id,
+              item_id: item.id,
+              customer_name: order.customer_name,
+              quantity: item.quantity,
+              completed_quantity: item.completed_quantity || 0,
+              item_status: item.item_status
+            }] : [] // Empty orders array if this item is completed
           })
         }
       })
     })
 
-  // Filter items based on status
-  const filteredItems = aggregatedItems.filter(item => {
-    if (statusFilter === 'all') return true
-    if (statusFilter === 'pending') return item.pending_quantity > 0
-    if (statusFilter === 'preparing') return item.orders.some(o => o.item_status === 'preparing')
-    if (statusFilter === 'ready') return item.orders.some(o => o.item_status === 'ready')
-    return true
-  })
+  // Filter items based on status - only show items that need attention
+  const filteredItems = aggregatedItems
+    .filter(item => {
+      // Always show items that are exiting (for smooth animation)
+      if (exitingCards.has(item.menu_item_id)) return true
+      
+      // Only show items that have active orders (orders array contains non-completed items)
+      if (item.orders.length === 0) return false
+      
+      // Only show items that have pending work (not fully completed)
+      if (item.pending_quantity <= 0) return false
+      
+      if (statusFilter === 'all') return true
+      if (statusFilter === 'pending') {
+        // Show items that have orders needing to start (confirmed status)
+        return item.orders.some(o => o.item_status === 'confirmed')
+      }
+      if (statusFilter === 'preparing') {
+        // Show items that have orders currently being prepared
+        return item.orders.some(o => o.item_status === 'preparing')
+      }
+      if (statusFilter === 'ready') {
+        // Show items that have orders ready for pickup
+        return item.orders.some(o => o.item_status === 'ready')
+      }
+      return true
+    })
 
   const handleCompleteUnit = async (itemId: string) => {
     setUpdating(itemId)
@@ -101,26 +141,72 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
 
   const handleStatusUpdate = async (itemId: string, status: OrderItem['item_status']) => {
     setUpdating(itemId)
+    
+    // If marking as completed (picked up), show positive animation
+    if (status === 'completed') {
+      setPickingUp(itemId)
+      // Wait a bit for the animation to start
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    
     try {
       await onUpdateItemStatus(itemId, status)
+      
+      // If picked up, wait for individual pickup animation to complete
+      if (status === 'completed') {
+        await new Promise(resolve => setTimeout(resolve, 800))
+        
+        // After pickup animation, check if this was the last order for this menu item
+        // We need to check against the original orders data to get accurate count
+        const orderWithItem = orders.find(order => 
+          order.order_items.some(item => item.id === itemId)
+        )
+        
+        if (orderWithItem) {
+          const itemBeingCompleted = orderWithItem.order_items.find(item => item.id === itemId)
+          
+          if (itemBeingCompleted) {
+            // Find all orders that have this same menu item
+            const allOrdersWithThisMenuItem = orders.flatMap(order => 
+              order.order_items.filter(item => 
+                item.menu_item_id === itemBeingCompleted.menu_item_id &&
+                order.status !== 'cancelled' && 
+                order.status !== 'completed' && 
+                order.status !== 'pending'
+              )
+            )
+            
+            // Count how many are NOT completed (excluding the one we just completed)
+            const remainingItems = allOrdersWithThisMenuItem.filter(item => 
+              item.id !== itemId && item.item_status !== 'completed'
+            )
+            
+            // If this was the last item for this menu item, trigger card exit animation
+            if (remainingItems.length === 0) {
+              setExitingCards(prev => new Set([...prev, itemBeingCompleted.menu_item_id]))
+              
+              // Remove from exiting cards after the exit animation completes
+              setTimeout(() => {
+                setExitingCards(prev => {
+                  const newSet = new Set(prev)
+                  newSet.delete(itemBeingCompleted.menu_item_id)
+                  return newSet
+                })
+              }, 1200) // Wait for exit animation to complete
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Failed to update item status:', error)
     } finally {
       setUpdating(null)
+      setPickingUp(null)
     }
   }
 
-  // Sort items to show pending items first, then by completion status
-  const sortedItems = filteredItems.sort((a, b) => {
-    // Items with pending quantities come first
-    if (a.pending_quantity > 0 && b.pending_quantity === 0) return -1
-    if (a.pending_quantity === 0 && b.pending_quantity > 0) return 1
-    
-    // Then sort by completion percentage
-    const aCompletion = a.completed_quantity / a.total_quantity
-    const bCompletion = b.completed_quantity / b.total_quantity
-    return aCompletion - bCompletion
-  })
+  // Don't sort items to maintain consistent positioning - prevent cards from moving around
+  const sortedItems = filteredItems
 
   return (
     <div className="space-y-6">
@@ -133,21 +219,48 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-black"
           >
-            <option value="all">All Items</option>
-            <option value="pending">Pending Items</option>
-            <option value="preparing">Preparing</option>
-            <option value="ready">Ready Items</option>
+            <option value="all">All Active Items</option>
+            <option value="pending">Need to Start</option>
+            <option value="preparing">Currently Cooking</option>
+            <option value="ready">Ready for Pickup</option>
           </select>
         </div>
       </div>
 
       {/* Items Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedItems.map((item) => (
+        <AnimatePresence mode="popLayout">
+          {sortedItems.map((item) => (
           <motion.div
             key={item.menu_item_id}
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={exitingCards.has(item.menu_item_id) ? {
+              x: 100,
+              opacity: 0,
+              scale: 0.9,
+              rotate: 5,
+              backgroundColor: 'rgb(187 247 208)'
+            } : { 
+              opacity: 1, 
+              y: 0,
+              scale: 1,
+              x: 0,
+              rotate: 0
+            }}
+            exit={{ 
+              opacity: 0, 
+              scale: 0.8, 
+              y: -30,
+              transition: { duration: 0.5 }
+            }}
+            transition={exitingCards.has(item.menu_item_id) ? {
+              duration: 1.0,
+              ease: "easeOut"
+            } : { 
+              duration: 0.8,
+              ease: "easeInOut"
+            }}
+
             className="bg-white rounded-lg border border-gray-200 shadow-sm"
           >
             {/* Item Header */}
@@ -159,73 +272,64 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
                   </div>
                   <div>
                     <h3 className="font-medium text-black">{item.name}</h3>
-                    <div className="text-sm text-gray-500">
-                      {item.completed_quantity}/{item.total_quantity} completed
-                    </div>
                   </div>
                 </div>
                 
-                <div className="text-right">
-                  <div className="text-lg font-semibold text-black">
+                <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center">
+                  <div className="text-lg font-semibold">
                     {item.pending_quantity}
                   </div>
-                  <div className="text-xs text-gray-500">pending</div>
-                </div>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(item.completed_quantity / item.total_quantity) * 100}%`
-                    }}
-                  />
                 </div>
               </div>
             </div>
 
             {/* Order Details */}
             <div className="p-4 space-y-3">
-              {item.orders
-                .sort((a, b) => new Date(orders.find(o => o.id === a.order_id)?.created_at || '').getTime() - 
-                                new Date(orders.find(o => o.id === b.order_id)?.created_at || '').getTime())
-                .map((orderItem) => (
-                <div
+              {item.orders.map((orderItem) => (
+                <motion.div
                   key={orderItem.item_id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  animate={pickingUp === orderItem.item_id ? {
+                    x: [0, 30, -10, 0],
+                    scale: [1, 1.05, 0.95, 1],
+                    backgroundColor: ['rgb(249 250 251)', 'rgb(220 252 231)', 'rgb(187 247 208)', 'rgb(249 250 251)']
+                  } : {}}
+                  transition={{
+                    duration: 0.8,
+                    ease: "easeInOut"
+                  }}
                 >
-                  <div className="flex-1">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-gray-200 text-gray-700 rounded flex items-center justify-center text-xs font-medium">
+                      {orderItem.quantity}
+                    </div>
                     <div className="text-sm font-medium text-gray-900">
                       {orderItem.customer_name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {orderItem.completed_quantity}/{orderItem.quantity} done
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-2">
                     {/* Status Display and Action Button */}
-                    {orderItem.item_status === 'completed' ? (
-                      <div className="flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                        <Hand size={12} className="mr-1" />
-                        Picked Up
-                      </div>
-                    ) : orderItem.item_status === 'ready' ? (
-                      <button
+                    {orderItem.item_status === 'ready' ? (
+                      <motion.button
                         onClick={() => handleStatusUpdate(orderItem.item_id, 'completed')}
-                        disabled={updating === orderItem.item_id}
+                        disabled={updating === orderItem.item_id || pickingUp === orderItem.item_id}
                         className="flex items-center px-3 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-full text-xs font-medium transition-colors"
                         title="Mark as picked up"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        animate={pickingUp === orderItem.item_id ? {
+                          backgroundColor: ['rgb(219 234 254)', 'rgb(187 247 208)', 'rgb(134 239 172)'],
+                          color: ['rgb(30 64 175)', 'rgb(21 128 61)', 'rgb(22 101 52)']
+                        } : {}}
                       >
-                        {updating === orderItem.item_id ? (
+                        {updating === orderItem.item_id || pickingUp === orderItem.item_id ? (
                           <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
                         ) : (
                           <Hand size={12} className="mr-1" />
                         )}
-                        Pick Up
-                      </button>
+                        {pickingUp === orderItem.item_id ? 'Picked Up! ✨' : 'Pick Up'}
+                      </motion.button>
                     ) : orderItem.item_status === 'preparing' ? (
                       <div className="flex items-center space-x-1">
                         <button
@@ -256,17 +360,7 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
                             </>
                           )}
                         </button>
-                        {/* Complete Unit Button for preparing items */}
-                        {orderItem.completed_quantity < orderItem.quantity && (
-                          <button
-                            onClick={() => handleCompleteUnit(orderItem.item_id)}
-                            disabled={updating === orderItem.item_id}
-                            className="p-1 text-green-600 hover:bg-green-100 rounded-full transition-colors"
-                            title={`Complete 1 unit (${orderItem.completed_quantity}/${orderItem.quantity} done)`}
-                          >
-                            <CheckCircle size={14} />
-                          </button>
-                        )}
+
                       </div>
                     ) : (
                       <button
@@ -284,7 +378,7 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
                       </button>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
 
@@ -307,44 +401,11 @@ export default function ItemManagement({ orders, onCompleteItemUnit, onUpdateIte
                     {updating ? 'Starting...' : 'Start All'}
                   </button>
                 )}
-                
-                {/* Mark Ready Button - only show if there are preparing items */}
-                {item.orders.some(orderItem => orderItem.item_status === 'preparing') && (
-                  <button
-                    onClick={async () => {
-                      for (const orderItem of item.orders) {
-                        if (orderItem.item_status === 'preparing') {
-                          await handleStatusUpdate(orderItem.item_id, 'ready')
-                        }
-                      }
-                    }}
-                    disabled={updating !== null}
-                    className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {updating ? 'Updating...' : 'Mark Ready'}
-                  </button>
-                )}
-                
-                {/* Complete All Button - only show if there are ready items */}
-                {item.orders.some(orderItem => orderItem.item_status === 'ready') && (
-                  <button
-                    onClick={async () => {
-                      for (const orderItem of item.orders) {
-                        if (orderItem.item_status === 'ready') {
-                          await handleStatusUpdate(orderItem.item_id, 'completed')
-                        }
-                      }
-                    }}
-                    disabled={updating !== null}
-                    className="flex-1 px-3 py-2 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                  >
-                    {updating ? 'Completing...' : 'Complete All'}
-                  </button>
-                )}
               </div>
             </div>
           </motion.div>
-        ))}
+          ))}
+        </AnimatePresence>
       </div>
 
       {filteredItems.length === 0 && (

@@ -8,9 +8,23 @@ import { withAuth } from '@/contexts/AuthContext'
 import { useOrders, Order } from '@/hooks/useOrders'
 import OrderCard from '@/components/admin/OrderCard'
 import ItemManagement from '@/components/admin/ItemManagement'
+import NewOrderNotification from '@/components/admin/NewOrderNotification'
+import RealtimeStatusIndicator from '@/components/admin/RealtimeStatusIndicator'
 
 function OrdersPage() {
-  const { orders, loading, error, updateOrderStatus, cancelOrder, updatePaymentStatus, completeItemUnit, updateItemStatus } = useOrders()
+  const { 
+    orders, 
+    loading, 
+    error, 
+    updateOrderStatus, 
+    cancelOrder, 
+    updatePaymentStatus, 
+    completeItemUnit, 
+    updateItemStatus,
+    isConnected,
+    newOrderNotification,
+    clearNewOrderNotification
+  } = useOrders()
   const [activeTab, setActiveTab] = useState<'orders' | 'kitchen'>('orders')
   const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -71,8 +85,16 @@ function OrdersPage() {
   ]
 
   return (
-    <AdminLayout title="Order Management">
+    <AdminLayout>
       <div className="space-y-6">
+        
+        {/* Header with Real-time Status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+            <RealtimeStatusIndicator isConnected={isConnected} />
+          </div>
+        </div>
 
 
         {/* Tab Navigation */}
@@ -216,7 +238,20 @@ function OrdersPage() {
               animate={{ opacity: 1 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {filteredOrders.map((order, index) => (
+              {filteredOrders
+                .sort((a, b) => {
+                  // Cancelled orders go to the bottom
+                  if (a.status === 'cancelled' && b.status !== 'cancelled') return 1
+                  if (a.status !== 'cancelled' && b.status === 'cancelled') return -1
+                  
+                  // For non-cancelled orders, sort by payment status: pending first, then paid
+                  if (a.payment_status === 'pending' && b.payment_status !== 'pending') return -1
+                  if (a.payment_status !== 'pending' && b.payment_status === 'pending') return 1
+                  
+                  // Within same payment status, sort by creation time (newest first)
+                  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                })
+                .map((order, index) => (
                 <motion.div
                   key={order.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -242,6 +277,12 @@ function OrdersPage() {
           />
         )}
       </div>
+
+      {/* Real-time notifications */}
+      <NewOrderNotification 
+        order={newOrderNotification} 
+        onClose={clearNewOrderNotification} 
+      />
     </AdminLayout>
   )
 }

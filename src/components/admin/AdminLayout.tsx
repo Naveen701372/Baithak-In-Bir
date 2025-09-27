@@ -75,6 +75,12 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
       permission: 'users' as const,
     },
     {
+      name: 'Debug Real-time',
+      href: '/admin/debug-realtime',
+      icon: Settings,
+      permission: 'orders' as const,
+    },
+    {
       name: 'Settings',
       href: '/admin/settings',
       icon: Settings,
@@ -217,7 +223,7 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
             
             <div className="flex items-center space-x-4">
               <div className="hidden sm:block text-right">
-                <p className="text-sm font-medium text-black">{user?.full_name}</p>
+                <p className="text-sm font-medium text-black">{user?.email}</p>
                 <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
               </div>
             </div>

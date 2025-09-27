@@ -138,10 +138,10 @@ export default function OrderCard({ order, onStatusUpdate, onCancelOrder, onUpda
               </span>
               <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${
                 order.payment_status === 'paid' 
-                  ? 'bg-green-100 text-green-800 border-green-200'
+                  ? 'bg-green-50 text-green-700 border-green-200'
                   : order.payment_status === 'refunded'
                   ? 'bg-red-100 text-red-800 border-red-200'
-                  : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                  : 'bg-yellow-50 text-yellow-700 border-yellow-200'
               }`}>
                 <CreditCard size={10} className="mr-1" />
                 {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
@@ -240,7 +240,13 @@ export default function OrderCard({ order, onStatusUpdate, onCancelOrder, onUpda
             <button
               onClick={() => setShowPaymentDialog(true)}
               disabled={updating}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className={`w-full py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
+                order.payment_status === 'paid'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
+                  : order.payment_status === 'pending'
+                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-200'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               <CreditCard size={16} className="mr-2" />
               Manage Payment ({order.payment_status})

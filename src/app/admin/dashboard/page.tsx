@@ -1,15 +1,16 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ShoppingBag, Users, TrendingUp, Clock, AlertCircle, CheckCircle } from 'lucide-react'
+import { ShoppingBag, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Package } from 'lucide-react'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { withAuth } from '@/contexts/AuthContext'
 import { useOrders } from '@/hooks/useOrders'
 import { useOrderNotifications } from '@/hooks/useOrderNotifications'
 import OrderCard from '@/components/admin/OrderCard'
+import InventoryAlerts from '@/components/admin/InventoryAlerts'
 
 function DashboardPage() {
-  const { todaysOrders, loading, error, updateOrderStatus, getOrdersByStatus } = useOrders()
+  const { todaysOrders, loading, error, updateOrderStatus, cancelOrder, updatePaymentStatus, getOrdersByStatus } = useOrders()
   useOrderNotifications() // Enable real-time notifications
 
   // Calculate real-time stats
@@ -89,6 +90,9 @@ function DashboardPage() {
           })}
         </div>
 
+        {/* Inventory Alerts */}
+        <InventoryAlerts showInDashboard={true} maxItems={3} />
+
         {/* Order Management Sections */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -117,7 +121,13 @@ function DashboardPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pendingOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onStatusUpdate={updateOrderStatus} />
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      onStatusUpdate={updateOrderStatus}
+                      onCancelOrder={cancelOrder}
+                      onUpdatePaymentStatus={updatePaymentStatus}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -138,7 +148,13 @@ function DashboardPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {preparingOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onStatusUpdate={updateOrderStatus} />
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      onStatusUpdate={updateOrderStatus}
+                      onCancelOrder={cancelOrder}
+                      onUpdatePaymentStatus={updatePaymentStatus}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -160,7 +176,13 @@ function DashboardPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {readyOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onStatusUpdate={updateOrderStatus} />
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      onStatusUpdate={updateOrderStatus}
+                      onCancelOrder={cancelOrder}
+                      onUpdatePaymentStatus={updatePaymentStatus}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -210,7 +232,7 @@ function DashboardPage() {
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
         >
           <h2 className="text-lg font-semibold text-black mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <a 
               href="/admin/orders"
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
@@ -221,12 +243,21 @@ function DashboardPage() {
             </a>
             
             <a 
-              href="/admin/users"
+              href="/admin/menu"
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
             >
               <Users size={20} className="text-black mb-2" />
-              <p className="font-medium text-black">Manage Staff</p>
-              <p className="text-sm text-gray-600">Add or edit staff members</p>
+              <p className="font-medium text-black">Menu Management</p>
+              <p className="text-sm text-gray-600">Manage menu items and categories</p>
+            </a>
+            
+            <a 
+              href="/admin/inventory"
+              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
+            >
+              <Package size={20} className="text-black mb-2" />
+              <p className="font-medium text-black">Inventory Management</p>
+              <p className="text-sm text-gray-600">Track stock levels and suppliers</p>
             </a>
             
             <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">

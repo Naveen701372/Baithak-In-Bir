@@ -85,7 +85,13 @@ export const menuAPI = {
 
     console.log('Menu items fetched:', menuItems?.length || 0)
 
-    return { categories: categories || [], menuItems: menuItems || [] }
+    // Add cache busting for images to ensure fresh images are loaded
+    const itemsWithFreshImages = (menuItems || []).map(item => ({
+      ...item,
+      image_url: item.image_url ? `${item.image_url}?t=${Date.now()}` : item.image_url
+    }))
+
+    return { categories: categories || [], menuItems: itemsWithFreshImages }
   },
 
   // Fetch categories only
@@ -157,6 +163,27 @@ export const orderAPI = {
       .insert(orderItems)
 
     if (itemsError) throw itemsError
+
+    // Automatically deduct inventory for the order
+    try {
+      const response = await fetch('/api/inventory/deduct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.warn('Inventory deduction failed:', errorData)
+        // Don't throw error here - order is already created
+        // Just log the warning for now
+      }
+    } catch (error) {
+      console.warn('Failed to deduct inventory:', error)
+      // Don't throw error - order is already created
+    }
 
     return order
   },
