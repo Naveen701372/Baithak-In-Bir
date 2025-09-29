@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Upload, 
-  Search, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Upload,
+  Search,
   Eye,
   EyeOff,
   Star,
@@ -17,6 +17,8 @@ import {
 import { supabase } from '@/lib/supabase'
 import MenuItemForm from './MenuItemForm'
 import CategoryManagement from './CategoryManagement'
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
+import { useToast, ToastContainer } from '@/components/ui/Toast'
 
 interface MenuItem {
   id: string
@@ -28,6 +30,7 @@ interface MenuItem {
   is_featured: boolean
   category_id?: string
   display_order: number
+  hasOrders?: boolean
   categories?: {
     name: string
   }
@@ -58,6 +61,13 @@ export default function MenuManagement() {
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
   const [showCategories, setShowCategories] = useState(false)
+  const [currentView, setCurrentView] = useState<'menu' | 'categories'>('menu')
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; itemId: string; itemName: string }>({
+    isOpen: false,
+    itemId: '',
+    itemName: ''
+  })
+  const { toasts, removeToast, showSuccess, showError } = useToast()
 
   useEffect(() => {
     fetchMenuItems()
@@ -100,13 +110,21 @@ export default function MenuManagement() {
         .order('display_order', { ascending: true })
 
       if (error) throw error
-      
-      // Add cache busting for images
+
+      // Check which items have been ordered
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('menu_item_id')
+
+      const orderedItemIds = new Set(orderItems?.map(item => item.menu_item_id) || [])
+
+      // Add cache busting for images and order status
       const itemsWithFreshImages = (data || []).map(item => ({
         ...item,
-        image_url: item.image_url ? `${item.image_url}?t=${Date.now()}` : item.image_url
+        image_url: item.image_url ? `${item.image_url}?t=${Date.now()}` : item.image_url,
+        hasOrders: orderedItemIds.has(item.id)
       }))
-      
+
       setMenuItems(itemsWithFreshImages)
     } catch (error) {
       console.error('Error fetching menu items:', error)
@@ -131,20 +149,100 @@ export default function MenuManagement() {
   }
 
   const handleDeleteItem = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return
-
     try {
+      // First check if this menu item has been ordered
+      const { data: orderItems, error: checkError } = await supabase
+        .from('order_items')
+        .select('id')
+        .eq('menu_item_id', id)
+        .limit(1)
+
+      if (checkError) {
+        console.error('Error checking order items:', JSON.stringify(checkError, null, 2))
+        showError('Failed to check dependencies', checkError.message || 'Could not verify if item can be deleted')
+        return
+      }
+
+      if (orderItems && orderItems.length > 0) {
+        showError(
+          'Cannot delete menu item',
+          'This item has been included in previous orders and cannot be deleted to preserve order history. You can mark it as unavailable instead.'
+        )
+        return
+      }
+
       const { error } = await supabase
         .from('menu_items')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
-      
+      if (error) {
+        // Better error logging with proper serialization
+        console.error('Supabase error deleting menu item:')
+        console.error('Error message:', error.message)
+        console.error('Error details:', error.details)
+        console.error('Error hint:', error.hint)
+        console.error('Error code:', error.code)
+        console.error('Full error object:', JSON.stringify(error, null, 2))
+
+        // Handle foreign key constraint error specifically
+        if (error.message?.includes('foreign key constraint') || error.message?.includes('order_items')) {
+          showError(
+            'Cannot delete menu item',
+            'This item is referenced in existing orders and cannot be deleted. Mark it as unavailable instead.'
+          )
+        } else {
+          showError('Failed to delete menu item', error.message || 'An unexpected error occurred')
+        }
+        return
+      }
+
       setMenuItems(prev => prev.filter(item => item.id !== id))
+      // Removed success toast as per user feedback - deletion confirmation is enough
     } catch (error) {
-      console.error('Error deleting menu item:', error)
-      alert('Failed to delete menu item')
+      console.error('Error deleting menu item:', JSON.stringify(error, null, 2))
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      showError('Failed to delete menu item', errorMessage)
+    }
+  }
+
+  const openDeleteConfirmation = async (id: string, name: string) => {
+    // Check if item has been ordered before showing confirmation
+    try {
+      const { data: orderItems, error } = await supabase
+        .from('order_items')
+        .select('id')
+        .eq('menu_item_id', id)
+        .limit(1)
+
+      if (error) {
+        console.error('Error checking order dependencies:', error)
+        showError('Cannot check dependencies', 'Failed to verify if item can be deleted')
+        return
+      }
+
+      if (orderItems && orderItems.length > 0) {
+        showError(
+          'Cannot delete "' + name + '"',
+          'This item has been included in previous orders and cannot be deleted to preserve order history. You can mark it as unavailable instead.'
+        )
+        return
+      }
+
+      setDeleteConfirmation({ isOpen: true, itemId: id, itemName: name })
+    } catch (error) {
+      console.error('Error checking dependencies:', error)
+      showError('Cannot check dependencies', 'Failed to verify if item can be deleted')
+    }
+  }
+
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmation({ isOpen: false, itemId: '', itemName: '' })
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirmation.itemId) {
+      handleDeleteItem(deleteConfirmation.itemId)
     }
   }
 
@@ -156,15 +254,16 @@ export default function MenuManagement() {
         .eq('id', id)
 
       if (error) throw error
-      
-      setMenuItems(prev => 
-        prev.map(item => 
+
+      setMenuItems(prev =>
+        prev.map(item =>
           item.id === id ? { ...item, is_available: !currentStatus } : item
         )
       )
     } catch (error) {
       console.error('Error updating availability:', error)
-      alert('Failed to update availability')
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      showError('Failed to update availability', errorMessage)
     }
   }
 
@@ -176,21 +275,22 @@ export default function MenuManagement() {
         .eq('id', id)
 
       if (error) throw error
-      
-      setMenuItems(prev => 
-        prev.map(item => 
+
+      setMenuItems(prev =>
+        prev.map(item =>
           item.id === id ? { ...item, is_featured: !currentStatus } : item
         )
       )
     } catch (error) {
       console.error('Error updating featured status:', error)
-      alert('Failed to update featured status')
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      showError('Failed to update featured status', errorMessage)
     }
   }
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || item.category_id === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -209,21 +309,32 @@ export default function MenuManagement() {
     )
   }
 
+  if (currentView === 'categories') {
+    return (
+      <CategoryManagement
+        onBack={() => setCurrentView('menu')}
+        onSuccess={() => {
+          setCurrentView('menu')
+          fetchCategories()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div></div>
+      <div className="flex justify-end items-center gap-4">
         <div className="flex gap-2">
           <button
-            onClick={() => setShowCategories(true)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            onClick={() => setCurrentView('categories')}
+            className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 font-medium"
           >
             Manage Categories
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
           >
             <Plus size={16} />
             Add Menu Item
@@ -283,22 +394,26 @@ export default function MenuManagement() {
                     <Upload size={32} />
                   </div>
                 )}
-                
+
                 {/* Status badges */}
-                <div className="absolute top-2 left-2 flex gap-1">
+                <div className="absolute top-2 left-2 flex flex-wrap gap-1">
                   {item.is_featured && (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full flex items-center gap-1">
                       <Star size={10} />
                       Featured
                     </span>
                   )}
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    item.is_available 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+                  <span className={`px-2 py-1 text-xs rounded-full ${item.is_available
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                    }`}>
                     {item.is_available ? 'Available' : 'Unavailable'}
                   </span>
+                  {item.hasOrders && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      Has Orders
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -308,7 +423,7 @@ export default function MenuManagement() {
                   <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
                   <span className="text-lg font-bold text-gray-900">₹{item.price}</span>
                 </div>
-                
+
                 <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                   {item.description}
                 </p>
@@ -341,28 +456,26 @@ export default function MenuManagement() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleToggleAvailability(item.id, item.is_available)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        item.is_available 
-                          ? 'text-green-600 hover:bg-green-50' 
-                          : 'text-red-600 hover:bg-red-50'
-                      }`}
+                      className={`p-2 rounded-lg transition-colors ${item.is_available
+                        ? 'text-green-600 hover:bg-green-50'
+                        : 'text-red-600 hover:bg-red-50'
+                        }`}
                       title={item.is_available ? 'Mark as unavailable' : 'Mark as available'}
                     >
                       {item.is_available ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
                     <button
                       onClick={() => handleToggleFeatured(item.id, item.is_featured)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        item.is_featured 
-                          ? 'text-yellow-600 hover:bg-yellow-50' 
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
+                      className={`p-2 rounded-lg transition-colors ${item.is_featured
+                        ? 'text-yellow-600 hover:bg-yellow-50'
+                        : 'text-gray-400 hover:bg-gray-50'
+                        }`}
                       title={item.is_featured ? 'Remove from featured' : 'Mark as featured'}
                     >
                       <Star size={16} />
                     </button>
                   </div>
-                  
+
                   <div className="flex gap-1">
                     <button
                       onClick={() => {
@@ -375,9 +488,13 @@ export default function MenuManagement() {
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete item"
+                      onClick={() => openDeleteConfirmation(item.id, item.name)}
+                      className={`p-2 rounded-lg transition-colors ${item.hasOrders
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        }`}
+                      title={item.hasOrders ? 'Cannot delete - item has order history' : 'Delete item'}
+                      disabled={item.hasOrders}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -396,7 +513,7 @@ export default function MenuManagement() {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No menu items found</h3>
           <p className="text-gray-600 mb-4">
-            {searchTerm || selectedCategory !== 'all' 
+            {searchTerm || selectedCategory !== 'all'
               ? 'Try adjusting your search or filter criteria'
               : 'Get started by adding your first menu item'
             }
@@ -427,18 +544,22 @@ export default function MenuManagement() {
         )}
       </AnimatePresence>
 
-      {/* Category Management Modal */}
-      <AnimatePresence>
-        {showCategories && (
-          <CategoryManagement
-            onClose={() => setShowCategories(false)}
-            onSuccess={() => {
-              setShowCategories(false)
-              fetchCategories()
-            }}
-          />
-        )}
-      </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteConfirmation.isOpen}
+        onClose={closeDeleteConfirmation}
+        onConfirm={confirmDelete}
+        title="Delete Menu Item"
+        message={`Are you sure you want to delete "${deleteConfirmation.itemName}"? This will permanently remove the item from your menu. This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        icon="delete"
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Plus, Edit, Trash2, GripVertical } from 'lucide-react'
+import { Plus, Edit, Trash2, Tag, Tags } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Category {
@@ -14,11 +14,11 @@ interface Category {
 }
 
 interface CategoryManagementProps {
-  onClose: () => void
+  onBack: () => void
   onSuccess: () => void
 }
 
-export default function CategoryManagement({ onClose, onSuccess }: CategoryManagementProps) {
+export default function CategoryManagement({ onBack, onSuccess }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -50,13 +50,13 @@ export default function CategoryManagement({ onClose, onSuccess }: CategoryManag
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       const categoryData = {
         name: formData.name,
         description: formData.description || null,
         display_order: editingCategory?.display_order || categories.length,
-        is_active: true
+        is_active: editingCategory?.is_active ?? true
       }
 
       if (editingCategory) {
@@ -135,199 +135,205 @@ export default function CategoryManagement({ onClose, onSuccess }: CategoryManag
 
   if (loading) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      >
-        <div className="bg-white rounded-lg p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
-        </div>
-      </motion.div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+      </div>
     )
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ type: "spring", duration: 0.4 }}
+      className="space-y-6"
     >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
-      >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Manage Categories</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-gray-500" />
-          </button>
-        </div>
+      {/* Header */}
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 font-medium"
+        >
+          Back to Menu
+        </button>
 
-        <div className="p-8">
-          {/* Add Category Button */}
-          <div className="mb-8">
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 font-medium"
+        >
+          <Plus size={16} />
+          <span>Add Category</span>
+        </button>
+      </div>
+
+      {/* Categories Grid */}
+      <div className="space-y-6">
+
+        {/* Categories Grid */}
+        {categories.length === 0 ? (
+          <div className="text-center py-24">
+            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+              <Tags size={32} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-black mb-3">No categories yet</h3>
+            <p className="text-gray-600 leading-relaxed max-w-md mx-auto mb-8">
+              Create your first category to organize your menu items and improve navigation
+            </p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl"
+              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 mx-auto font-medium"
             >
-              <Plus size={18} />
-              Add New Category
+              <Plus size={16} />
+              Create First Category
             </button>
           </div>
-
-          {/* Categories List */}
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {categories.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Plus size={24} className="text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No categories yet</h3>
-                <p className="text-gray-500">Create your first category to organize your menu</p>
-              </div>
-            ) : (
-              categories.map((category) => (
-                <div
-                  key={category.id}
-                  className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="p-2 bg-gray-50 rounded-lg">
-                        <GripVertical size={18} className="text-gray-400" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            category.is_active 
-                              ? 'bg-green-100 text-green-700 border border-green-200' 
-                              : 'bg-red-100 text-red-700 border border-red-200'
-                          }`}>
-                            {category.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
-                        {category.description && (
-                          <p className="text-gray-600 leading-relaxed">{category.description}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleToggleActive(category.id, category.is_active)}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          category.is_active 
-                            ? 'text-red-600 hover:bg-red-50 border border-red-200' 
-                            : 'text-green-600 hover:bg-green-50 border border-green-200'
-                        }`}
-                        title={category.is_active ? 'Deactivate' : 'Activate'}
-                      >
-                        {category.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                      
-                      <button
-                        onClick={() => handleEdit(category)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
-                        title="Edit category"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDelete(category.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                        title="Delete category"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Form */}
-          <AnimatePresence>
-            {showForm && (
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {categories.map((category, index) => (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-8 bg-gray-50 rounded-xl p-6"
+                key={category.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200"
               >
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  {editingCategory ? 'Edit Category' : 'Add New Category'}
-                </h3>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      Category Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white shadow-sm"
-                      placeholder="Enter category name"
-                    />
+                <div className="mb-6">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-black flex items-center gap-2" title={category.name}>
+                      <Tag size={16} className="text-gray-600" />
+                      {category.name}
+                    </h3>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full border shrink-0 ${category.is_active
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}>
+                      {category.is_active ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
+                  {category.description ? (
+                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-3" title={category.description}>
+                      {category.description}
+                    </p>
+                  ) : (
+                    <p className="text-gray-400 text-sm italic">
+                      No description provided
+                    </p>
+                  )}
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      Description
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white shadow-sm resize-none"
-                      placeholder="Describe this category (optional)"
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleActive(category.id, category.is_active)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium border rounded-lg transition-colors ${category.is_active
+                      ? 'border-red-200 text-red-700 hover:bg-red-50'
+                      : 'border-green-200 text-green-700 hover:bg-green-50'
+                      }`}
+                    title={category.is_active ? 'Deactivate' : 'Activate'}
+                  >
+                    {category.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
 
-                  <div className="flex justify-end gap-4 pt-4">
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl"
-                    >
-                      {editingCategory ? 'Update Category' : 'Create Category'}
-                    </button>
-                  </div>
-                </form>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleEdit(category)
+                    }}
+                    type="button"
+                    className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                    title="Edit category"
+                  >
+                    <Edit size={14} />
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(category.id)}
+                    className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                    title="Delete category"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            ))}
+          </div>
+        )}
 
-        <div className="flex justify-end gap-3 p-8 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={onSuccess}
-            className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl"
-          >
-            Done
-          </button>
+      </div>
+
+
+      {/* Modal Popup */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-black">
+                {editingCategory ? 'Edit Category' : 'Add Category'}
+              </h2>
+              <button
+                onClick={resetForm}
+                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                    placeholder="Enter category name"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-black resize-none"
+                    placeholder="Describe this category (optional)"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                >
+                  {editingCategory ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </motion.div>
+      )}
+
     </motion.div>
   )
 }

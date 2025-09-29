@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
   AlertTriangle,
   Package,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  X
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import InventoryItemForm from './InventoryItemForm'
@@ -35,6 +36,11 @@ export default function InventoryManagement() {
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'low-stock' | 'out-of-stock'>('all')
+  const [showRestockModal, setShowRestockModal] = useState(false)
+  const [restockingItem, setRestockingItem] = useState<InventoryItem | null>(null)
+  const [restockQuantity, setRestockQuantity] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null)
 
   useEffect(() => {
     fetchInventoryItems()
@@ -56,54 +62,74 @@ export default function InventoryManagement() {
     }
   }
 
-  const handleDeleteItem = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this inventory item? This will affect menu items that use this ingredient.')) {
-      return
-    }
+  const handleDeleteItem = async () => {
+    if (!deletingItem) return
 
     try {
       const { error } = await supabase
         .from('inventory_items')
         .delete()
-        .eq('id', id)
+        .eq('id', deletingItem.id)
 
       if (error) throw error
-      
-      setInventoryItems(prev => prev.filter(item => item.id !== id))
+
+      setInventoryItems(prev => prev.filter(item => item.id !== deletingItem.id))
+      setShowDeleteModal(false)
+      setDeletingItem(null)
     } catch (error) {
       console.error('Error deleting inventory item:', error)
       alert('Failed to delete inventory item')
     }
   }
 
-  const handleRestockItem = async (id: string, additionalStock: number) => {
-    try {
-      const item = inventoryItems.find(i => i.id === id)
-      if (!item) return
+  const openDeleteModal = (item: InventoryItem) => {
+    setDeletingItem(item)
+    setShowDeleteModal(true)
+  }
 
-      const newStock = item.current_stock + additionalStock
+  const handleRestockItem = async () => {
+    if (!restockingItem || !restockQuantity) return
+
+    const additionalStock = Number(restockQuantity)
+    if (isNaN(additionalStock) || additionalStock <= 0) {
+      alert('Please enter a valid quantity')
+      return
+    }
+
+    try {
+      const newStock = restockingItem.current_stock + additionalStock
 
       const { error } = await supabase
         .from('inventory_items')
-        .update({ 
+        .update({
           current_stock: newStock,
           last_restocked: new Date().toISOString()
         })
-        .eq('id', id)
+        .eq('id', restockingItem.id)
 
       if (error) throw error
-      
-      setInventoryItems(prev => 
-        prev.map(item => 
-          item.id === id 
+
+      setInventoryItems(prev =>
+        prev.map(item =>
+          item.id === restockingItem.id
             ? { ...item, current_stock: newStock, last_restocked: new Date().toISOString() }
             : item
         )
       )
+
+      setShowRestockModal(false)
+      setRestockingItem(null)
+      setRestockQuantity('')
     } catch (error) {
       console.error('Error restocking item:', error)
       alert('Failed to restock item')
     }
+  }
+
+  const openRestockModal = (item: InventoryItem) => {
+    setRestockingItem(item)
+    setRestockQuantity('')
+    setShowRestockModal(true)
   }
 
   const getStockStatus = (item: InventoryItem) => {
@@ -130,13 +156,13 @@ export default function InventoryManagement() {
 
   const filteredItems = inventoryItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.supplier?.toLowerCase().includes(searchTerm.toLowerCase())
-    
+      item.supplier?.toLowerCase().includes(searchTerm.toLowerCase())
+
     const status = getStockStatus(item)
-    const matchesFilter = filterType === 'all' || 
-                         (filterType === 'low-stock' && status === 'low-stock') ||
-                         (filterType === 'out-of-stock' && status === 'out-of-stock')
-    
+    const matchesFilter = filterType === 'all' ||
+      (filterType === 'low-stock' && status === 'low-stock') ||
+      (filterType === 'out-of-stock' && status === 'out-of-stock')
+
     return matchesSearch && matchesFilter
   })
 
@@ -160,8 +186,7 @@ export default function InventoryManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div></div>
+      <div className="flex justify-end">
         <button
           onClick={() => setShowForm(true)}
           className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
@@ -172,34 +197,34 @@ export default function InventoryManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{inventoryItems.length}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200 shadow-sm">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
+              <Package className="text-blue-500" size={18} />
+              <p className="text-xs sm:text-sm text-blue-700 font-semibold">Total</p>
             </div>
-            <Package className="text-gray-400" size={24} />
+            <p className="text-xl sm:text-3xl font-bold text-blue-900">{inventoryItems.length}</p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold text-yellow-600">{lowStockCount}</p>
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 sm:p-4 rounded-xl border border-yellow-200 shadow-sm">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
+              <TrendingDown className="text-yellow-500" size={18} />
+              <p className="text-xs sm:text-sm text-yellow-700 font-semibold">Low</p>
             </div>
-            <TrendingDown className="text-yellow-400" size={24} />
+            <p className="text-xl sm:text-3xl font-bold text-yellow-800">{lowStockCount}</p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Out of Stock</p>
-              <p className="text-2xl font-bold text-red-600">{outOfStockCount}</p>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 p-3 sm:p-4 rounded-xl border border-red-200 shadow-sm">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
+              <AlertTriangle className="text-red-500" size={18} />
+              <p className="text-xs sm:text-sm text-red-700 font-semibold">Out</p>
             </div>
-            <AlertTriangle className="text-red-400" size={24} />
+            <p className="text-xl sm:text-3xl font-bold text-red-800">{outOfStockCount}</p>
           </div>
         </div>
       </div>
@@ -227,117 +252,14 @@ export default function InventoryManagement() {
         </select>
       </div>
 
-      {/* Inventory Items Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Item Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Current Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Min Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cost/Unit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Supplier
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.map((item) => {
-                const status = getStockStatus(item)
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                        <div className="text-sm text-gray-500">Unit: {item.unit}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {item.current_stock} {item.unit}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {item.minimum_stock} {item.unit}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockStatusColor(status)}`}>
-                        {getStockStatusText(status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        ₹{item.cost_per_unit.toFixed(2)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {item.supplier || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            const additionalStock = prompt('Enter quantity to add:')
-                            if (additionalStock && !isNaN(Number(additionalStock))) {
-                              handleRestockItem(item.id, Number(additionalStock))
-                            }
-                          }}
-                          className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded"
-                          title="Restock"
-                        >
-                          <TrendingUp size={16} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingItem(item)
-                            setShowForm(true)
-                          }}
-                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
-                          title="Edit"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12">
+      {/* Inventory Items Cards */}
+      <div className="space-y-4">
+        {filteredItems.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 text-center py-12">
             <Package size={48} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory items found</h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm || filterType !== 'all' 
+              {searchTerm || filterType !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Get started by adding your first inventory item'
               }
@@ -350,6 +272,89 @@ export default function InventoryManagement() {
                 Add Inventory Item
               </button>
             )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredItems.map((item) => {
+              const status = getStockStatus(item)
+              return (
+                <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between">
+                    {/* Item Info */}
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-6 gap-4 items-center">
+                      {/* Name, Unit and Status */}
+                      <div className="sm:col-span-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockStatusColor(status)}`}>
+                            {getStockStatusText(status)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500">Unit: {item.unit}</p>
+                      </div>
+
+                      {/* Stock Info - Most Prominent */}
+                      <div className="sm:col-span-2 flex gap-3">
+                        <div className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
+                          <p className="text-xs font-medium text-blue-700 uppercase tracking-wider mb-1">Current</p>
+                          <p className="text-xl font-bold text-blue-900">
+                            {item.current_stock}
+                          </p>
+                          <p className="text-xs text-blue-600">{item.unit}</p>
+                        </div>
+                        <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+                          <p className="text-xs font-medium text-gray-700 uppercase tracking-wider mb-1">Min</p>
+                          <p className="text-xl font-bold text-gray-900">
+                            {item.minimum_stock}
+                          </p>
+                          <p className="text-xs text-gray-600">{item.unit}</p>
+                        </div>
+                      </div>
+
+                      {/* Additional Info */}
+                      <div className="sm:col-span-1">
+                        <p className="text-xs text-gray-500 mb-1">₹{item.cost_per_unit.toFixed(2)}</p>
+                        {item.supplier && (
+                          <p className="text-xs text-gray-500 truncate">{item.supplier}</p>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="sm:col-span-1 flex items-center justify-between">
+                        <button
+                          onClick={() => openRestockModal(item)}
+                          className="flex items-center gap-1 px-2 py-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Restock"
+                        >
+                          <TrendingUp size={16} />
+                          <span className="text-xs font-medium">Restock</span>
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingItem(item)
+                              setShowForm(true)
+                            }}
+                            className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(item)}
+                            className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -365,6 +370,118 @@ export default function InventoryManagement() {
             }}
             onSuccess={handleFormSuccess}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Restock Modal */}
+      <AnimatePresence>
+        {showRestockModal && restockingItem && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Restock Item</h3>
+                <button
+                  onClick={() => setShowRestockModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Restocking: <span className="font-medium">{restockingItem.name}</span>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Current Stock: <span className="font-medium">{restockingItem.current_stock} {restockingItem.unit}</span>
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity to Add
+                </label>
+                <input
+                  type="number"
+                  value={restockQuantity}
+                  onChange={(e) => setRestockQuantity(e.target.value)}
+                  placeholder="Enter quantity"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRestockModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRestockItem}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Restock
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && deletingItem && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Delete Item</h3>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to delete <span className="font-medium">{deletingItem.name}</span>?
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Warning:</strong> This will affect menu items that use this ingredient.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteItem}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

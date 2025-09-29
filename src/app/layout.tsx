@@ -9,7 +9,7 @@ import { Footer } from "@/components/layout/footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Baithak In Bir - Restaurant Management",
+  title: "Baithak In Bir - A Baithak, A View, A Vibe",
   description: "Modern restaurant management platform for Baithak In Bir",
   manifest: "/manifest.json",
 };
