@@ -19,10 +19,23 @@ export function useRealTimeOrders() {
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [reconnectAttempts, setReconnectAttempts] = useState(0)
 
+    const requestNotificationPermission = async () => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            try {
+                await Notification.requestPermission()
+            } catch (error) {
+                console.log('Failed to request notification permission:', error)
+            }
+        }
+    }
+
     const connect = () => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close()
         }
+
+        // Request notification permission when connecting
+        requestNotificationPermission()
 
         try {
             console.log('Establishing real-time connection...')

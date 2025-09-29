@@ -33,6 +33,7 @@ export interface MenuItem {
 
 export interface Order {
   id: string
+  order_number?: number
   customer_name?: string
   customer_phone?: string
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
@@ -134,6 +135,8 @@ export const orderAPI = {
       total_price: number
     }>
   }) {
+    console.log('OrderAPI: Starting order creation...')
+
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -147,7 +150,12 @@ export const orderAPI = {
       .select()
       .single()
 
-    if (orderError) throw orderError
+    if (orderError) {
+      console.error('OrderAPI: Failed to create order:', orderError)
+      throw new Error(`Failed to create order: ${orderError.message}`)
+    }
+
+    console.log('OrderAPI: Order created successfully:', order.id)
 
     // Create order items
     const orderItems = orderData.items.map(item => ({
@@ -158,11 +166,18 @@ export const orderAPI = {
       total_price: item.total_price
     }))
 
+    console.log('OrderAPI: Creating order items...', orderItems)
+
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems)
 
-    if (itemsError) throw itemsError
+    if (itemsError) {
+      console.error('OrderAPI: Failed to create order items:', itemsError)
+      throw new Error(`Failed to create order items: ${itemsError.message}`)
+    }
+
+    console.log('OrderAPI: Order items created successfully')
 
     // Automatically deduct inventory for the order
     try {

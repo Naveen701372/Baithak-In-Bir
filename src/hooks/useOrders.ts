@@ -4,6 +4,7 @@ import { useRealTimeOrders } from './useRealTimeOrders'
 
 export interface Order {
   id: string
+  order_number?: number
   customer_name: string
   customer_phone: string
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
@@ -38,6 +39,7 @@ export function useOrders() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newOrderNotification, setNewOrderNotification] = useState<Order | null>(null)
+  const [kitchenOrderNotification, setKitchenOrderNotification] = useState<Order | null>(null)
 
   // Use real-time connection
   const { lastEvent, isConnected } = useRealTimeOrders()
@@ -49,6 +51,7 @@ export function useOrders() {
         .from('orders')
         .select(`
           *,
+          order_number,
           order_items (
             id,
             order_id,
@@ -305,14 +308,21 @@ export function useOrders() {
   }
 
   // Update payment status
-  const updatePaymentStatus = async (orderId: string, paymentStatus: Order['payment_status']) => {
+  const updatePaymentStatus = async (orderId: string, paymentStatus: Order['payment_status'], paymentMethod?: string) => {
     try {
+      const updateData: any = {
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      }
+
+      // Add payment method if provided
+      if (paymentMethod) {
+        updateData.payment_method = paymentMethod
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({
-          payment_status: paymentStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', orderId)
 
       if (error) throw error
@@ -320,7 +330,12 @@ export function useOrders() {
       // Update local state
       setOrders(prev => prev.map(order =>
         order.id === orderId
-          ? { ...order, payment_status: paymentStatus, updated_at: new Date().toISOString() }
+          ? {
+            ...order,
+            payment_status: paymentStatus,
+            ...(paymentMethod && { payment_method: paymentMethod }),
+            updated_at: new Date().toISOString()
+          }
           : order
       ))
     } catch (err) {
@@ -328,34 +343,102 @@ export function useOrders() {
     }
   }
 
-  // Play notification sound for new orders
-  const playNotificationSound = () => {
+  // Enhanced notification sound system
+  const playNotificationSound = (type: 'new_order' | 'kitchen_alert' = 'new_order') => {
     try {
-      // Create a simple notification beep using Web Audio API
       const audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)()
+
+      if (audioContext.state === 'suspended') {
+        audioContext.resume()
+      }
+
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
+      const filterNode = audioContext.createBiquadFilter()
 
-      oscillator.connect(gainNode)
+      oscillator.connect(filterNode)
+      filterNode.connect(gainNode)
       gainNode.connect(audioContext.destination)
 
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
-      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1)
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2)
+      if (type === 'kitchen_alert') {
+        // Kitchen alert: Urgent double beep
+        oscillator.frequency.setValueAtTime(900, audioContext.currentTime)
+        oscillator.frequency.setValueAtTime(700, audioContext.currentTime + 0.15)
+        oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.3)
+        oscillator.frequency.setValueAtTime(700, audioContext.currentTime + 0.45)
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+        filterNode.frequency.setValueAtTime(2000, audioContext.currentTime)
+        gainNode.gain.setValueAtTime(0.4, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6)
 
-      oscillator.start(audioContext.currentTime)
-      oscillator.stop(audioContext.currentTime + 0.3)
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.6)
+      } else {
+        // New order: Pleasant chime
+        oscillator.frequency.setValueAtTime(523, audioContext.currentTime) // C5
+        oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.2) // E5
+        oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.4) // G5
+
+        filterNode.frequency.setValueAtTime(1500, audioContext.currentTime)
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6)
+
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.6)
+      }
     } catch (error) {
       console.log('Could not play notification sound:', error)
+    }
+  }
+
+  // Browser notification system
+  const showBrowserNotification = (title: string, body: string, tag: string) => {
+    try {
+      if (Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+          body,
+          icon: '/icon-192x192.png',
+          tag,
+          badge: '/icon-192x192.png',
+          silent: false,
+          requireInteraction: true,
+          actions: [
+            {
+              action: 'view',
+              title: 'View Orders'
+            }
+          ]
+        })
+
+        notification.onclick = () => {
+          window.focus()
+          notification.close()
+        }
+
+        // Auto close after 8 seconds
+        setTimeout(() => {
+          notification.close()
+        }, 8000)
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            showBrowserNotification(title, body, tag)
+          }
+        })
+      }
+    } catch (error) {
+      console.log('Could not show browser notification:', error)
     }
   }
 
   // Clear new order notification
   const clearNewOrderNotification = () => {
     setNewOrderNotification(null)
+  }
+
+  // Clear kitchen order notification
+  const clearKitchenOrderNotification = () => {
+    setKitchenOrderNotification(null)
   }
 
   // Handle real-time events
@@ -372,6 +455,23 @@ export function useOrders() {
 
         if (existingIndex >= 0) {
           // Update existing order
+          const previousOrder = prev[existingIndex]
+
+          // Check if order status changed from 'pending' to 'confirmed' (for kitchen notification)
+          if (previousOrder.status === 'pending' && updatedOrder.status === 'confirmed') {
+            console.log('🍳 Order confirmed for kitchen:', updatedOrder.id, updatedOrder.customer_name)
+            setKitchenOrderNotification(updatedOrder)
+            playNotificationSound('kitchen_alert')
+            showBrowserNotification(
+              '🍳 New Kitchen Order!',
+              `Order from ${updatedOrder.customer_name} - ${updatedOrder.order_items.length} items to prepare`,
+              'kitchen-order'
+            )
+
+            // Clear kitchen notification after 6 seconds
+            setTimeout(() => setKitchenOrderNotification(null), 6000)
+          }
+
           const newOrders = [...prev]
           newOrders[existingIndex] = updatedOrder
           return newOrders
@@ -379,7 +479,12 @@ export function useOrders() {
           // New order - add to beginning and show notification
           if (lastEvent.event === 'INSERT') {
             setNewOrderNotification(updatedOrder)
-            playNotificationSound()
+            playNotificationSound('new_order')
+            showBrowserNotification(
+              '📋 New Order Received!',
+              `Order from ${updatedOrder.customer_name} - ₹${updatedOrder.total_amount}`,
+              'new-order'
+            )
 
             // Clear notification after 5 seconds
             setTimeout(() => setNewOrderNotification(null), 5000)
@@ -456,6 +561,9 @@ export function useOrders() {
     // Real-time features
     isConnected,
     newOrderNotification,
-    clearNewOrderNotification
+    clearNewOrderNotification,
+    // Kitchen notifications
+    kitchenOrderNotification,
+    clearKitchenOrderNotification
   }
 }

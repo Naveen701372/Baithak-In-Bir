@@ -8,6 +8,7 @@ import { useOrders } from '@/hooks/useOrders'
 import { useOrderNotifications } from '@/hooks/useOrderNotifications'
 import OrderCard from '@/components/admin/OrderCard'
 import InventoryAlerts from '@/components/admin/InventoryAlerts'
+import TestOrderButton from '@/components/admin/TestOrderButton'
 
 function DashboardPage() {
   const { todaysOrders, loading, error, updateOrderStatus, cancelOrder, updatePaymentStatus, getOrdersByStatus } = useOrders()
@@ -59,8 +60,8 @@ function DashboardPage() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats Grid - Mobile Optimized */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -69,29 +70,38 @@ function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                    <p className="text-2xl font-semibold text-black mt-1">{stat.value}</p>
-                    <p className={`text-sm mt-1 ${
-                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change} from yesterday
-                    </p>
+                <div className="text-center">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <Icon size={20} className="text-gray-700" />
                   </div>
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Icon size={24} className="text-black" />
-                  </div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1 leading-tight">
+                    {stat.name}
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-black mb-1">
+                    {stat.value}
+                  </p>
+                  <p className={`text-xs leading-tight ${
+                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {stat.change}
+                  </p>
                 </div>
               </motion.div>
             )
           })}
         </div>
 
-        {/* Inventory Alerts */}
-        <InventoryAlerts showInDashboard={true} maxItems={3} />
+        {/* Inventory Alerts & Test Notifications */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <InventoryAlerts showInDashboard={true} maxItems={3} />
+          </div>
+          <div>
+            <TestOrderButton />
+          </div>
+        </div>
 
         {/* Order Management Sections */}
         {loading ? (
@@ -111,15 +121,18 @@ function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
+                className="bg-red-50 border border-red-200 rounded-xl p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-black flex items-center">
-                    <AlertCircle className="mr-2 text-red-500" size={20} />
-                    Pending Orders ({pendingOrders.length})
+                  <h2 className="text-base sm:text-lg font-semibold text-red-800 flex items-center">
+                    <AlertCircle className="mr-2 text-red-600" size={18} />
+                    Pending ({pendingOrders.length})
                   </h2>
-                  <span className="text-sm text-red-600 font-medium">Needs immediate attention</span>
+                  <span className="text-xs sm:text-sm text-red-600 font-medium bg-red-100 px-2 py-1 rounded-full">
+                    Urgent
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   {pendingOrders.map((order) => (
                     <OrderCard 
                       key={order.id} 
@@ -139,14 +152,18 @@ function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
+                className="bg-orange-50 border border-orange-200 rounded-xl p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-black flex items-center">
-                    <Clock className="mr-2 text-orange-500" size={20} />
+                  <h2 className="text-base sm:text-lg font-semibold text-orange-800 flex items-center">
+                    <Clock className="mr-2 text-orange-600" size={18} />
                     Preparing ({preparingOrders.length})
                   </h2>
+                  <span className="text-xs sm:text-sm text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+                    In Progress
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   {preparingOrders.map((order) => (
                     <OrderCard 
                       key={order.id} 
@@ -166,15 +183,18 @@ function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
+                className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-black flex items-center">
-                    <CheckCircle className="mr-2 text-green-500" size={20} />
-                    Ready for Pickup ({readyOrders.length})
+                  <h2 className="text-base sm:text-lg font-semibold text-green-800 flex items-center">
+                    <CheckCircle className="mr-2 text-green-600" size={18} />
+                    Ready ({readyOrders.length})
                   </h2>
-                  <span className="text-sm text-green-600 font-medium">Ready to serve</span>
+                  <span className="text-xs sm:text-sm text-green-600 font-medium bg-green-100 px-2 py-1 rounded-full">
+                    Ready to serve
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   {readyOrders.map((order) => (
                     <OrderCard 
                       key={order.id} 
@@ -229,41 +249,41 @@ function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+          className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
         >
-          <h2 className="text-lg font-semibold text-black mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <h2 className="text-base sm:text-lg font-semibold text-black mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <a 
               href="/admin/orders"
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
+              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
             >
-              <ShoppingBag size={20} className="text-black mb-2" />
-              <p className="font-medium text-black">View All Orders</p>
-              <p className="text-sm text-gray-600">Detailed order management</p>
+              <ShoppingBag size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
+              <p className="font-medium text-black text-sm leading-tight">Orders</p>
+              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Manage orders</p>
             </a>
             
             <a 
               href="/admin/menu"
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
+              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
             >
-              <Users size={20} className="text-black mb-2" />
-              <p className="font-medium text-black">Menu Management</p>
-              <p className="text-sm text-gray-600">Manage menu items and categories</p>
+              <Users size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
+              <p className="font-medium text-black text-sm leading-tight">Menu</p>
+              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Items & categories</p>
             </a>
             
             <a 
               href="/admin/inventory"
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left block"
+              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
             >
-              <Package size={20} className="text-black mb-2" />
-              <p className="font-medium text-black">Inventory Management</p>
-              <p className="text-sm text-gray-600">Track stock levels and suppliers</p>
+              <Package size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
+              <p className="font-medium text-black text-sm leading-tight">Inventory</p>
+              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Stock levels</p>
             </a>
             
-            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
-              <TrendingUp size={20} className="text-black mb-2" />
-              <p className="font-medium text-black">View Analytics</p>
-              <p className="text-sm text-gray-600">Coming soon</p>
+            <button className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center group">
+              <TrendingUp size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
+              <p className="font-medium text-black text-sm leading-tight">Analytics</p>
+              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Coming soon</p>
             </button>
           </div>
         </motion.div>

@@ -2,10 +2,15 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChefHat, Play, Flame, Hand } from 'lucide-react'
 import { Order, OrderItem } from '@/hooks/useOrders'
+import KitchenOrderNotification from './KitchenOrderNotification'
+import { getFoodIcon } from '@/components/food-icons'
+import LazyImage from '@/components/ui/LazyImage'
 
 interface ItemManagementProps {
   orders: Order[]
   onUpdateItemStatus: (itemId: string, status: OrderItem['item_status']) => Promise<void>
+  kitchenOrderNotification: Order | null
+  onClearKitchenNotification: () => void
 }
 
 interface AggregatedItem {
@@ -25,7 +30,7 @@ interface AggregatedItem {
   }[]
 }
 
-export default function ItemManagement({ orders, onUpdateItemStatus }: ItemManagementProps) {
+export default function ItemManagement({ orders, onUpdateItemStatus, kitchenOrderNotification, onClearKitchenNotification }: ItemManagementProps) {
   const [updating, setUpdating] = useState<string | null>(null)
   const [pickingUp, setPickingUp] = useState<string | null>(null)
   const [exitingCards, setExitingCards] = useState<Set<string>>(new Set())
@@ -188,195 +193,217 @@ export default function ItemManagement({ orders, onUpdateItemStatus }: ItemManag
     <div className="space-y-6">
 
       {/* Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <AnimatePresence>
-          {sortedItems.map((item) => (
-            <motion.div
-              key={item.menu_item_id}
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={exitingCards.has(item.menu_item_id) ? {
-                x: 100,
-                opacity: 0,
-                scale: 0.9,
-                rotate: 5,
-                backgroundColor: 'rgb(187 247 208)'
-              } : {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                x: 0,
-                rotate: 0
-              }}
-              exit={{
-                opacity: 0,
-                scale: 0.8,
-                x: 100,
-                transition: { duration: 0.6, ease: "easeInOut" }
-              }}
-              transition={exitingCards.has(item.menu_item_id) ? {
-                duration: 1.0,
-                ease: "easeOut"
-              } : {
-                duration: 0.6,
-                ease: "easeInOut",
-                layout: { duration: 0.3 }
-              }}
-              layoutId={item.menu_item_id}
-              className="bg-white rounded-lg border border-gray-200 shadow-sm"
-            >
-              {/* Item Header */}
-              <div className="p-4 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <ChefHat size={16} className="text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-black">{item.name}</h3>
-                    </div>
-                  </div>
-
-                  <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center">
-                    <div className="text-lg font-semibold">
-                      {item.pending_quantity}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Order Details */}
-              <div className="p-4 space-y-3">
-                {item.orders.map((orderItem) => (
-                  <motion.div
-                    key={orderItem.item_id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    animate={pickingUp === orderItem.item_id ? {
-                      x: [0, 30, -10, 0],
-                      scale: [1, 1.05, 0.95, 1],
-                      backgroundColor: ['rgb(249 250 251)', 'rgb(220 252 231)', 'rgb(187 247 208)', 'rgb(249 250 251)']
-                    } : {}}
-                    transition={{
-                      duration: 0.8,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-gray-200 text-gray-700 rounded flex items-center justify-center text-xs font-medium">
-                        {orderItem.quantity}
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {orderItem.customer_name}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      {/* Status Display and Action Button */}
-                      {orderItem.item_status === 'ready' ? (
-                        <motion.button
-                          onClick={() => handleStatusUpdate(orderItem.item_id, 'completed')}
-                          disabled={updating === orderItem.item_id || pickingUp === orderItem.item_id}
-                          className="flex items-center px-3 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-full text-xs font-medium transition-colors"
-                          title="Mark as picked up"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          animate={pickingUp === orderItem.item_id ? {
-                            backgroundColor: ['rgb(219 234 254)', 'rgb(187 247 208)', 'rgb(134 239 172)'],
-                            color: ['rgb(30 64 175)', 'rgb(21 128 61)', 'rgb(22 101 52)']
-                          } : {}}
-                        >
-                          {updating === orderItem.item_id || pickingUp === orderItem.item_id ? (
-                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
+      <div className="min-h-[200px]">
+        {filteredItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {sortedItems.map((item) => (
+                <motion.div
+                  key={item.menu_item_id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={exitingCards.has(item.menu_item_id) ? {
+                    y: -20,
+                    opacity: 0,
+                    scale: 0.9,
+                    backgroundColor: 'rgb(187 247 208)'
+                  } : {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    x: 0,
+                    rotate: 0
+                  }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.9,
+                    y: -20,
+                    transition: { duration: 0.4, ease: "easeOut" }
+                  }}
+                  transition={exitingCards.has(item.menu_item_id) ? {
+                    duration: 1.0,
+                    ease: "easeOut"
+                  } : {
+                    duration: 0.6,
+                    ease: "easeInOut"
+                  }}
+                  className="bg-white rounded-lg border border-gray-200 shadow-sm"
+                >
+                  {/* Item Header */}
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-orange-100 rounded-lg overflow-hidden flex items-center justify-center">
+                          {item.image_url && item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.name) ? (
+                            <LazyImage
+                              src={item.image_url}
+                              alt={item.name}
+                              className="w-full h-full"
+                              placeholder={
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ChefHat size={16} className="text-orange-600" />
+                                </div>
+                              }
+                            />
                           ) : (
-                            <Hand size={12} className="mr-1" />
+                            <ChefHat size={16} className="text-orange-600" />
                           )}
-                          {pickingUp === orderItem.item_id ? 'Picked Up! ✨' : 'Pick Up'}
-                        </motion.button>
-                      ) : orderItem.item_status === 'preparing' ? (
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={() => handleStatusUpdate(orderItem.item_id, 'ready')}
-                            disabled={updating === orderItem.item_id}
-                            className="flex items-center px-2 py-1 bg-orange-100 text-orange-800 hover:bg-orange-200 rounded-full text-xs font-medium transition-colors"
-                            title="Mark as ready for pickup"
-                          >
-                            {updating === orderItem.item_id ? (
-                              <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <>
-                                <motion.div
-                                  animate={{
-                                    scale: [1, 1.2, 1],
-                                    rotate: [0, 5, -5, 0]
-                                  }}
-                                  transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    ease: "easeInOut"
-                                  }}
-                                  className="mr-1"
-                                >
-                                  <Flame size={10} className="text-orange-600" />
-                                </motion.div>
-                                Cooking
-                              </>
-                            )}
-                          </button>
-
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => handleStatusUpdate(orderItem.item_id, 'preparing')}
-                          disabled={updating === orderItem.item_id}
-                          className="flex items-center px-3 py-1 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-full text-xs font-medium transition-colors"
-                          title="Start cooking"
-                        >
-                          {updating === orderItem.item_id ? (
-                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
+                        <div>
+                          <h3 className="font-medium text-black">{item.name}</h3>
+                        </div>
+                      </div>
+
+                      <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center">
+                        <div className="text-lg font-semibold">
+                          {item.pending_quantity}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Details */}
+                  <div className="p-4 space-y-3">
+                    {item.orders.map((orderItem) => (
+                      <motion.div
+                        key={orderItem.item_id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        animate={pickingUp === orderItem.item_id ? {
+                          x: [0, 30, -10, 0],
+                          scale: [1, 1.05, 0.95, 1],
+                          backgroundColor: ['rgb(249 250 251)', 'rgb(220 252 231)', 'rgb(187 247 208)', 'rgb(249 250 251)']
+                        } : {}}
+                        transition={{
+                          duration: 0.8,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-6 h-6 bg-gray-200 text-gray-700 rounded flex items-center justify-center text-xs font-medium">
+                            {orderItem.quantity}
+                          </div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {orderItem.customer_name}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {/* Status Display and Action Button */}
+                          {orderItem.item_status === 'ready' ? (
+                            <motion.button
+                              onClick={() => handleStatusUpdate(orderItem.item_id, 'completed')}
+                              disabled={updating === orderItem.item_id || pickingUp === orderItem.item_id}
+                              className="flex items-center px-3 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-full text-xs font-medium transition-colors"
+                              title="Mark as picked up"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              animate={pickingUp === orderItem.item_id ? {
+                                backgroundColor: ['rgb(219 234 254)', 'rgb(187 247 208)', 'rgb(134 239 172)'],
+                                color: ['rgb(30 64 175)', 'rgb(21 128 61)', 'rgb(22 101 52)']
+                              } : {}}
+                            >
+                              {updating === orderItem.item_id || pickingUp === orderItem.item_id ? (
+                                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
+                              ) : (
+                                <Hand size={12} className="mr-1" />
+                              )}
+                              {pickingUp === orderItem.item_id ? 'Picked Up! ✨' : 'Pick Up'}
+                            </motion.button>
+                          ) : orderItem.item_status === 'preparing' ? (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => handleStatusUpdate(orderItem.item_id, 'ready')}
+                                disabled={updating === orderItem.item_id}
+                                className="flex items-center px-2 py-1 bg-orange-100 text-orange-800 hover:bg-orange-200 rounded-full text-xs font-medium transition-colors"
+                                title="Mark as ready for pickup"
+                              >
+                                {updating === orderItem.item_id ? (
+                                  <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <>
+                                    <motion.div
+                                      animate={{
+                                        scale: [1, 1.2, 1],
+                                        rotate: [0, 5, -5, 0]
+                                      }}
+                                      transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                      }}
+                                      className="mr-1"
+                                    >
+                                      <Flame size={10} className="text-orange-600" />
+                                    </motion.div>
+                                    Cooking
+                                  </>
+                                )}
+                              </button>
+
+                            </div>
                           ) : (
-                            <Play size={12} className="mr-1" />
+                            <button
+                              onClick={() => handleStatusUpdate(orderItem.item_id, 'preparing')}
+                              disabled={updating === orderItem.item_id}
+                              className="flex items-center px-3 py-1 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-full text-xs font-medium transition-colors"
+                              title="Start cooking"
+                            >
+                              {updating === orderItem.item_id ? (
+                                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
+                              ) : (
+                                <Play size={12} className="mr-1" />
+                              )}
+                              Start
+                            </button>
                           )}
-                          Start
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="p-4 border-t border-gray-100">
+                    <div className="flex space-x-2">
+                      {/* Start All Button - only show if there are items not preparing */}
+                      {item.orders.some(orderItem => orderItem.item_status === 'confirmed') && (
+                        <button
+                          onClick={async () => {
+                            for (const orderItem of item.orders) {
+                              if (orderItem.item_status === 'confirmed') {
+                                await handleStatusUpdate(orderItem.item_id, 'preparing')
+                              }
+                            }
+                          }}
+                          disabled={updating !== null}
+                          className="flex-1 px-3 py-2 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+                        >
+                          {updating ? 'Starting...' : 'Start All'}
                         </button>
                       )}
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Quick Actions */}
-              <div className="p-4 border-t border-gray-100">
-                <div className="flex space-x-2">
-                  {/* Start All Button - only show if there are items not preparing */}
-                  {item.orders.some(orderItem => orderItem.item_status === 'confirmed') && (
-                    <button
-                      onClick={async () => {
-                        for (const orderItem of item.orders) {
-                          if (orderItem.item_status === 'confirmed') {
-                            await handleStatusUpdate(orderItem.item_id, 'preparing')
-                          }
-                        }
-                      }}
-                      disabled={updating !== null}
-                      className="flex-1 px-3 py-2 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
-                    >
-                      {updating ? 'Starting...' : 'Start All'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="text-center py-12"
+          >
+            <ChefHat size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No items to prepare</h3>
+            <p className="text-gray-600">All items are completed or no active orders.</p>
+          </motion.div>
+        )}
       </div>
 
-      {filteredItems.length === 0 && (
-        <div className="text-center py-12">
-          <ChefHat size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No items to prepare</h3>
-          <p className="text-gray-600">All items are completed or no active orders.</p>
-        </div>
-      )}
+      {/* Kitchen Order Notification */}
+      <KitchenOrderNotification
+        order={kitchenOrderNotification}
+        onClose={onClearKitchenNotification}
+      />
     </div>
   )
 }

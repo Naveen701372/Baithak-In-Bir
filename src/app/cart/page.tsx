@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Minus, Trash2, User, ShoppingCart, MessageSquare } fro
 import { useRouter } from 'next/navigation'
 import { orderAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
+import LazyImage from '@/components/ui/LazyImage'
 
 interface CartItem {
   id: string
@@ -14,6 +15,7 @@ interface CartItem {
   quantity: number
   category_name?: string
   category_id?: string
+  image_url?: string
 }
 
 interface CustomerDetails {
@@ -51,7 +53,7 @@ export default function CartPage() {
       removeItem(itemId)
       return
     }
-    
+
     const updatedCart = cart.map(item =>
       item.id === itemId ? { ...item, quantity: newQuantity } : item
     )
@@ -71,29 +73,44 @@ export default function CartPage() {
     return cart.reduce((sum, item) => sum + item.quantity, 0)
   }
 
+  const clearCart = () => {
+    setCart([])
+    localStorage.removeItem('baithak-cart')
+  }
+
   const validateForm = () => {
     const newErrors: Partial<CustomerDetails> = {}
-    
+
     if (!customerDetails.name.trim()) {
       newErrors.name = 'Name is required'
     }
-    
+
     if (!customerDetails.phone.trim()) {
       newErrors.phone = 'Phone number is required'
     } else if (!/^\d{10}$/.test(customerDetails.phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Please enter a valid 10-digit phone number'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmitOrder = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) {
+      // Scroll to contact details section if validation fails
+      const contactDetailsSection = document.getElementById('contact-details-section')
+      if (contactDetailsSection) {
+        contactDetailsSection.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }
+      return
+    }
     if (cart.length === 0) return
 
     setIsSubmitting(true)
-    
+
     try {
       const orderData = {
         customer_name: customerDetails.name.trim(),
@@ -108,17 +125,68 @@ export default function CartPage() {
         }))
       }
 
+      console.log('Creating order with data:', orderData)
+      console.log('Cart validation:', {
+        cartLength: cart.length,
+        allItemsHaveIds: cart.every(item => item.id && item.id.trim() !== ''),
+        allItemsHavePrices: cart.every(item => item.price > 0),
+        allItemsHaveQuantities: cart.every(item => item.quantity > 0)
+      })
+
+      // Validate cart items
+      if (!cart.every(item => item.id && item.id.trim() !== '')) {
+        throw new Error('Some cart items are missing valid IDs')
+      }
+      if (!cart.every(item => item.price > 0)) {
+        throw new Error('Some cart items have invalid prices')
+      }
+      if (!cart.every(item => item.quantity > 0)) {
+        throw new Error('Some cart items have invalid quantities')
+      }
+
       const order = await orderAPI.createOrder(orderData)
-      
+
       // Clear cart
       localStorage.removeItem('baithak-cart')
-      
+
       // Redirect to confirmation page
       router.push(`/order-confirmation/${order.id}`)
-      
+
     } catch (error) {
       console.error('Error placing order:', error)
-      alert('Failed to place order. Please try again.')
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined,
+        cause: error instanceof Error ? error.cause : undefined,
+        full: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      })
+
+      // Log order data that failed (reconstruct it if needed)
+      try {
+        const failedOrderData = {
+          customer_name: customerDetails.name.trim(),
+          customer_phone: customerDetails.phone.trim(),
+          total_amount: getTotalPrice(),
+          notes: customerDetails.notes.trim() || undefined,
+          items: cart.map(item => ({
+            menu_item_id: item.id,
+            quantity: item.quantity,
+            unit_price: item.price,
+            total_price: item.price * item.quantity
+          }))
+        }
+        console.error('Order data that failed:', failedOrderData)
+      } catch (logError) {
+        console.error('Could not log failed order data:', logError)
+      }
+
+      // More specific error message
+      let errorMessage = 'Failed to place order. Please try again.'
+      if (error instanceof Error) {
+        errorMessage = `Order failed: ${error.message}`
+      }
+      alert(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -187,8 +255,18 @@ export default function CartPage() {
               <p className="text-sm text-gray-600">{getTotalItems()} items • ₹{getTotalPrice()}</p>
             </div>
           </div>
-          <div className="bg-teal-100 px-3 py-1 rounded-full">
-            <span className="text-teal-700 text-sm font-medium">{getTotalItems()}</span>
+          <div className="flex items-center space-x-2">
+            <motion.button
+              onClick={clearCart}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              whileTap={{ scale: 0.95 }}
+              title="Clear cart"
+            >
+              <Trash2 size={18} />
+            </motion.button>
+            <div className="bg-teal-100 px-3 py-1 rounded-full">
+              <span className="text-teal-700 text-sm font-medium">{getTotalItems()}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -211,10 +289,25 @@ export default function CartPage() {
                 >
                   <div className="flex items-start space-x-3">
                     {/* Item Thumbnail */}
-                    <div className="w-14 h-14 bg-gradient-to-br from-teal-100 to-cyan-200 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <IconComponent className="w-8 h-8" />
+                    <div className="w-14 h-14 bg-gradient-to-br from-teal-100 to-cyan-200 rounded-xl flex-shrink-0 overflow-hidden">
+                      {item.image_url && item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.name) ? (
+                        <LazyImage
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-full h-full"
+                          placeholder={
+                            <div className="w-full h-full flex items-center justify-center">
+                              <IconComponent className="w-8 h-8" />
+                            </div>
+                          }
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <IconComponent className="w-8 h-8" />
+                        </div>
+                      )}
                     </div>
-                    
+
                     {/* Item Details & Controls */}
                     <div className="flex-1 min-w-0">
                       {/* Item Info & Total Price */}
@@ -234,7 +327,7 @@ export default function CartPage() {
                           </motion.button>
                         </div>
                       </div>
-                      
+
                       {/* Bottom Row: Unit Price & Quantity Controls */}
                       <div className="flex justify-between items-center">
                         <p className="text-teal-600 font-semibold text-sm">₹{item.price} each</p>
@@ -246,7 +339,7 @@ export default function CartPage() {
                           >
                             <Minus size={12} strokeWidth={2.5} />
                           </motion.button>
-                          <motion.span 
+                          <motion.span
                             className="text-black font-semibold text-sm min-w-[20px] text-center"
                             key={item.quantity}
                             initial={{ scale: 1.2 }}
@@ -274,6 +367,7 @@ export default function CartPage() {
 
         {/* Customer Details Form */}
         <motion.div
+          id="contact-details-section"
           className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -283,7 +377,7 @@ export default function CartPage() {
             <User size={20} className="mr-3 text-teal-600" />
             Contact Details
           </h2>
-          
+
           <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-800 mb-2">
@@ -293,9 +387,8 @@ export default function CartPage() {
                 type="text"
                 value={customerDetails.name}
                 onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
-                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${
-                  errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                }`}
+                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                  }`}
                 placeholder="Enter your full name"
               />
               {errors.name && <p className="text-red-500 text-sm mt-2 font-medium">{errors.name}</p>}
@@ -309,9 +402,8 @@ export default function CartPage() {
                 type="tel"
                 value={customerDetails.phone}
                 onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
-                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${
-                  errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                }`}
+                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                  }`}
                 placeholder="Enter your phone number"
               />
               {errors.phone && <p className="text-red-500 text-sm mt-2 font-medium">{errors.phone}</p>}

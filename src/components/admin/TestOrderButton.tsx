@@ -1,53 +1,143 @@
+'use client'
+
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { TestTube } from 'lucide-react'
-import { orderAPI } from '@/lib/supabase'
+import { TestTube, Volume2 } from 'lucide-react'
 
-export default function TestOrderButton() {
-  const [isCreating, setIsCreating] = useState(false)
+interface TestOrderButtonProps {
+  onTestKitchenNotification?: () => void
+  onTestNewOrderNotification?: () => void
+}
 
-  const createTestOrder = async () => {
-    setIsCreating(true)
+export default function TestOrderButton({ 
+  onTestKitchenNotification, 
+  onTestNewOrderNotification 
+}: TestOrderButtonProps) {
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const playTestSound = (type: 'new_order' | 'kitchen_alert') => {
+    if (isPlaying) return
+    
+    setIsPlaying(true)
+    
     try {
-      const testOrderData = {
-        customer_name: `Test Customer ${Math.floor(Math.random() * 1000)}`,
-        customer_phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
-        total_amount: Math.floor(Math.random() * 500) + 100,
-        notes: 'Test order for real-time updates',
-        items: [
-          {
-            menu_item_id: '1', // You might need to adjust this based on your menu items
-            quantity: Math.floor(Math.random() * 3) + 1,
-            unit_price: 150,
-            total_price: 150 * (Math.floor(Math.random() * 3) + 1)
-          }
-        ]
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      
+      if (audioContext.state === 'suspended') {
+        audioContext.resume()
       }
 
-      await orderAPI.createOrder(testOrderData)
-      console.log('Test order created successfully!')
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      const filterNode = audioContext.createBiquadFilter()
+
+      oscillator.connect(filterNode)
+      filterNode.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      if (type === 'kitchen_alert') {
+        // Kitchen alert: Urgent double beep
+        oscillator.frequency.setValueAtTime(900, audioContext.currentTime)
+        oscillator.frequency.setValueAtTime(700, audioContext.currentTime + 0.15)
+        oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.3)
+        oscillator.frequency.setValueAtTime(700, audioContext.currentTime + 0.45)
+        
+        filterNode.frequency.setValueAtTime(2000, audioContext.currentTime)
+        gainNode.gain.setValueAtTime(0.4, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6)
+        
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.6)
+        
+        setTimeout(() => setIsPlaying(false), 600)
+      } else {
+        // New order: Pleasant chime
+        oscillator.frequency.setValueAtTime(523, audioContext.currentTime) // C5
+        oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.2) // E5
+        oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.4) // G5
+        
+        filterNode.frequency.setValueAtTime(1500, audioContext.currentTime)
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6)
+        
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.6)
+        
+        setTimeout(() => setIsPlaying(false), 600)
+      }
     } catch (error) {
-      console.error('Failed to create test order:', error)
-      alert('Failed to create test order. Check console for details.')
-    } finally {
-      setIsCreating(false)
+      console.log('Could not play test sound:', error)
+      setIsPlaying(false)
+    }
+  }
+
+  const testBrowserNotification = (type: 'new_order' | 'kitchen_alert') => {
+    if (Notification.permission === 'granted') {
+      const notification = new Notification(
+        type === 'kitchen_alert' ? '🍳 Test Kitchen Alert!' : '📋 Test New Order!',
+        {
+          body: type === 'kitchen_alert' 
+            ? 'This is a test kitchen notification with sound'
+            : 'This is a test new order notification',
+          icon: '/icon-192x192.png',
+          tag: `test-${type}`,
+          silent: false,
+          requireInteraction: false
+        }
+      )
+      
+      setTimeout(() => {
+        notification.close()
+      }, 3000)
+    } else {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          testBrowserNotification(type)
+        }
+      })
     }
   }
 
   return (
-    <motion.button
-      onClick={createTestOrder}
-      disabled={isCreating}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-    >
-      {isCreating ? (
-        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-      ) : (
-        <TestTube size={16} className="mr-2" />
-      )}
-      {isCreating ? 'Creating...' : 'Create Test Order'}
-    </motion.button>
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center mb-3">
+        <TestTube size={16} className="mr-2 text-blue-600" />
+        <h3 className="text-sm font-semibold text-gray-900">Test Notifications</h3>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <motion.button
+          onClick={() => {
+            playTestSound('new_order')
+            testBrowserNotification('new_order')
+            onTestNewOrderNotification?.()
+          }}
+          disabled={isPlaying}
+          className="p-3 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          whileTap={{ scale: 0.95 }}
+        >
+          <Volume2 size={16} className="mx-auto mb-1 text-teal-600" />
+          <p className="text-xs font-medium text-teal-800">Test New Order</p>
+        </motion.button>
+        
+        <motion.button
+          onClick={() => {
+            playTestSound('kitchen_alert')
+            testBrowserNotification('kitchen_alert')
+            onTestKitchenNotification?.()
+          }}
+          disabled={isPlaying}
+          className="p-3 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          whileTap={{ scale: 0.95 }}
+        >
+          <Volume2 size={16} className="mx-auto mb-1 text-orange-600" />
+          <p className="text-xs font-medium text-orange-800">Test Kitchen Alert</p>
+        </motion.button>
+      </div>
+      
+      <div className="mt-3 text-xs text-gray-500">
+        Tests sound + browser notifications
+      </div>
+    </div>
   )
 }

@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, useInView, Variants } from 'framer-motion'
-import { Plus, Minus, ShoppingCart } from 'lucide-react'
+import { motion, useInView, Variants, AnimatePresence } from 'framer-motion'
+import { Plus, Minus, ShoppingCart, Search, Filter, X, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Category, MenuItem, menuAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
+import LazyImage from '@/components/ui/LazyImage'
 
 // Mock data for development (will be replaced with real data)
 const mockCategories: Category[] = [
@@ -58,6 +59,7 @@ interface CartItem {
   quantity: number
   category_name?: string
   category_id?: string
+  image_url?: string
 }
 
 // Subtle character animations - gentle "hello" with personality
@@ -288,8 +290,8 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
     <motion.div
       ref={ref}
       className={`flex-shrink-0 w-72 bg-white rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 ${quantity > 0
-          ? 'border-2 border-teal-300 shadow-md ring-2 ring-teal-200'
-          : 'border border-gray-100'
+        ? 'border-2 border-teal-300 shadow-md ring-2 ring-teal-200'
+        : 'border border-gray-100'
         }`}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -297,30 +299,64 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
     >
       {/* Item Image */}
       <div className={`h-48 relative overflow-hidden transition-all duration-300 ${quantity > 0
-          ? 'bg-gradient-to-br from-teal-100 to-cyan-200'
-          : 'bg-gradient-to-br from-gray-50 to-gray-100'
+        ? 'bg-gradient-to-br from-teal-100 to-cyan-200'
+        : 'bg-gradient-to-br from-gray-50 to-gray-100'
         }`}>
-        <div className="w-full h-full flex items-center justify-center">
-          <motion.div
-            className="cursor-pointer"
-            variants={variants}
-            initial="idle"
-            animate={isInView ? "animate" : "idle"}
-            whileHover={{
-              scale: 1.15,
-              rotate: [0, -8, 8, -5, 5, 0],
-              transition: {
-                rotate: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] },
-                scale: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }
-              }
+        {item.image_url && item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.name) ? (
+          // Show actual image with lazy loading
+          <LazyImage
+            src={item.image_url}
+            alt={item.name}
+            className="w-full h-full"
+            placeholder={
+              <motion.div
+                className="cursor-pointer"
+                variants={variants}
+                initial="idle"
+                animate={isInView ? "animate" : "idle"}
+                whileHover={{
+                  scale: 1.15,
+                  rotate: [0, -8, 8, -5, 5, 0],
+                  transition: {
+                    rotate: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] },
+                    scale: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }
+                  }
+                }}
+              >
+                {(() => {
+                  const IconComponent = getFoodIcon(category.name, item.name)
+                  return <IconComponent className="w-28 h-28" />
+                })()}
+              </motion.div>
+            }
+            onError={() => {
+              // This will trigger the error fallback in LazyImage
             }}
-          >
-            {(() => {
-              const IconComponent = getFoodIcon(category.name, item.name)
-              return <IconComponent className="w-28 h-28" />
-            })()}
-          </motion.div>
-        </div>
+          />
+        ) : (
+          // Show default icon if no image available
+          <div className="w-full h-full flex items-center justify-center">
+            <motion.div
+              className="cursor-pointer"
+              variants={variants}
+              initial="idle"
+              animate={isInView ? "animate" : "idle"}
+              whileHover={{
+                scale: 1.15,
+                rotate: [0, -8, 8, -5, 5, 0],
+                transition: {
+                  rotate: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] },
+                  scale: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }
+                }
+              }}
+            >
+              {(() => {
+                const IconComponent = getFoodIcon(category.name, item.name)
+                return <IconComponent className="w-28 h-28" />
+              })()}
+            </motion.div>
+          </div>
+        )}
         {item.is_featured && (
           <div className="absolute top-3 left-3 bg-black text-white px-2 py-1 text-xs font-light tracking-wide">
             FEATURED
@@ -400,6 +436,10 @@ export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [showFilter, setShowFilter] = useState(false)
 
   useEffect(() => {
     const fetchMenuData = async () => {
@@ -448,16 +488,17 @@ export default function MenuPage() {
             : cartItem
         )
       }
-      
+
       const newCartItem: CartItem = {
         id: item.id,
         name: item.name,
         price: item.price,
         quantity: 1,
         category_name: category?.name || 'Unknown',
-        category_id: item.category_id
+        category_id: item.category_id,
+        image_url: item.image_url
       }
-      
+
       return [...cart, newCartItem]
     })()
 
@@ -494,6 +535,40 @@ export default function MenuPage() {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   }
 
+  const clearCart = () => {
+    setCart([])
+    localStorage.removeItem('baithak-cart')
+  }
+
+  // Filter categories and menu items based on search and category filter
+  const filteredCategories = categories.filter(category => {
+    if (selectedCategory && category.id !== selectedCategory) return false
+
+    // Check if category has items that match search term
+    if (searchTerm) {
+      const categoryItems = menuItems.filter(item => item.category_id === category.id)
+      return categoryItems.some(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return true
+  })
+
+  const getFilteredItemsForCategory = (categoryId: string) => {
+    return menuItems.filter(item => {
+      if (item.category_id !== categoryId) return false
+
+      if (searchTerm) {
+        return item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      }
+
+      return true
+    })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -521,8 +596,8 @@ export default function MenuPage() {
 
       {/* Menu Content */}
       <div className="pb-24">
-        {categories.map((category, categoryIndex) => {
-          const categoryItems = menuItems.filter(item => item.category_id === category.id)
+        {filteredCategories.map((category, categoryIndex) => {
+          const categoryItems = getFilteredItemsForCategory(category.id)
 
           if (categoryItems.length === 0) return null
 
@@ -564,6 +639,137 @@ export default function MenuPage() {
         })}
       </div>
 
+      {/* Floating Search and Filter Controls - Bottom Right */}
+      <div className="fixed bottom-28 right-4 z-40 flex flex-col space-y-2">
+        {/* Search */}
+        <motion.div
+          className="relative"
+          initial={false}
+          animate={{ width: showSearch ? '280px' : '48px' }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <AnimatePresence>
+            {showSearch && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="absolute right-0 bottom-0 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-lg overflow-hidden"
+                style={{ width: '280px' }}
+              >
+                <div className="flex items-center p-3">
+                  <div className="flex-1 relative">
+                    <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search menu items..."
+                      className="w-full pl-9 pr-4 py-2 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-400"
+                      autoFocus
+                    />
+                  </div>
+                  <motion.button
+                    onClick={() => {
+                      setShowSearch(false)
+                      setSearchTerm('')
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X size={12} />
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={() => setShowSearch(!showSearch)}
+            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 ${showSearch || searchTerm
+                ? 'bg-teal-500 text-white'
+                : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
+              }`}
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+          >
+            <Search size={16} />
+          </motion.button>
+        </motion.div>
+
+        {/* Filter */}
+        <motion.div
+          className="relative"
+          initial={false}
+          animate={{ width: showFilter ? '240px' : '48px' }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <AnimatePresence>
+            {showFilter && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="absolute right-0 bottom-0 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-lg overflow-hidden"
+                style={{ width: '240px' }}
+              >
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-900">Filter by Category</span>
+                    <motion.button
+                      onClick={() => {
+                        setShowFilter(false)
+                        setSelectedCategory(null)
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <X size={12} />
+                    </motion.button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${!selectedCategory
+                          ? 'bg-teal-100 text-teal-800'
+                          : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                    >
+                      All Categories
+                    </button>
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${selectedCategory === category.id
+                            ? 'bg-teal-100 text-teal-800'
+                            : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={() => setShowFilter(!showFilter)}
+            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 ${showFilter || selectedCategory
+                ? 'bg-teal-500 text-white'
+                : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
+              }`}
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+          >
+            <Filter size={16} />
+          </motion.button>
+        </motion.div>
+      </div>
+
       {/* Floating Cart */}
       {getTotalItems() > 0 && (
         <motion.div
@@ -591,14 +797,25 @@ export default function MenuPage() {
                 </p>
               </div>
             </div>
-            <motion.button
-              onClick={() => router.push('/cart')}
-              className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.05 }}
-            >
-              View Cart
-            </motion.button>
+            <div className="flex items-center space-x-2">
+              <motion.button
+                onClick={clearCart}
+                className="bg-white/20 backdrop-blur-sm text-white p-2 hover:bg-white/30 transition-all duration-200 rounded-lg border border-white/30"
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
+                title="Clear cart"
+              >
+                <Trash2 size={16} />
+              </motion.button>
+              <motion.button
+                onClick={() => router.push('/cart')}
+                className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                View Cart
+              </motion.button>
+            </div>
           </div>
         </motion.div>
       )}

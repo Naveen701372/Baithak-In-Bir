@@ -5,6 +5,8 @@ import { motion } from 'framer-motion'
 import { CheckCircle, Clock, User, Phone, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { orderAPI, Order, OrderItem } from '@/lib/supabase'
+import { getFoodIcon } from '@/components/food-icons'
+import LazyImage from '@/components/ui/LazyImage'
 
 interface OrderWithItems extends Order {
   items: OrderItem[]
@@ -113,7 +115,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
               className="absolute inset-0 border-2 border-teal-300 rounded-full"
             />
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -141,7 +143,9 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
                 {getStatusText(order.status)}
               </div>
               <div>
-                <p className="text-base font-semibold text-black">#{order.id.slice(-8)}</p>
+                <p className="text-base font-semibold text-black">
+                  #{order.order_number || 'N/A'}
+                </p>
                 <p className="text-xs text-gray-600 mt-1">
                   {new Date(order.created_at).toLocaleString()}
                 </p>
@@ -188,10 +192,42 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           </h3>
           <div className="space-y-4">
             {order.items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-b-0">
+              <div key={item.id} className="flex items-center py-3 border-b border-gray-50 last:border-b-0">
+                {/* Item thumbnail with quantity */}
+                <div className="relative mr-4">
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-100 to-cyan-200">
+                    {item.menu_item?.image_url && item.menu_item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.menu_item.name) ? (
+                      <LazyImage
+                        src={item.menu_item.image_url}
+                        alt={item.menu_item.name}
+                        className="w-full h-full object-cover"
+                        placeholder={
+                          <div className="w-full h-full flex items-center justify-center">
+                            {(() => {
+                              const IconComponent = getFoodIcon('Unknown', item.menu_item?.name || 'Unknown Item')
+                              return <IconComponent className="w-6 h-6 text-teal-600" />
+                            })()}
+                          </div>
+                        }
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {(() => {
+                          const IconComponent = getFoodIcon('Unknown', item.menu_item?.name || 'Unknown Item')
+                          return <IconComponent className="w-6 h-6 text-teal-600" />
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  {/* Quantity badge */}
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-teal-500 text-white rounded-full flex items-center justify-center text-xs font-semibold shadow-lg">
+                    {item.quantity}
+                  </div>
+                </div>
+
                 <div className="flex-1">
                   <h4 className="text-base font-medium text-black">{item.menu_item?.name || 'Unknown Item'}</h4>
-                  <p className="text-sm text-gray-600">₹{item.unit_price} × {item.quantity}</p>
+                  <p className="text-sm text-gray-600">₹{item.unit_price} each</p>
                 </div>
                 <div className="text-right">
                   <p className="text-base font-medium text-black">₹{item.total_price}</p>
@@ -199,7 +235,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
               </div>
             ))}
           </div>
-          
+
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex items-center justify-between">
               <span className="text-lg font-semibold text-black">Total</span>
@@ -227,10 +263,10 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
         </motion.div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4 pt-4">
+        <div className="grid grid-cols-2 gap-3 pt-4">
           <motion.button
             onClick={() => router.push('/menu')}
-            className="bg-teal-600 text-white py-4 px-6 text-base font-medium tracking-wide hover:bg-teal-700 transition-colors rounded-lg"
+            className="bg-teal-600 text-white py-3 px-4 text-sm font-medium tracking-wide hover:bg-teal-700 transition-colors rounded-lg"
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -238,17 +274,124 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           >
             Order Again
           </motion.button>
-          
-          <motion.button
-            onClick={() => router.push('/')}
-            className="border border-gray-200 text-gray-700 py-4 px-6 text-base font-medium tracking-wide hover:bg-gray-50 transition-colors rounded-lg"
+
+          <motion.a
+            href="https://g.page/r/CXEZyzTfA-ZTEAE/review"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 text-amber-700 py-3 px-4 text-sm font-medium tracking-wide hover:from-amber-100 hover:to-yellow-100 hover:border-amber-300 transition-all duration-300 rounded-lg flex items-center justify-center space-x-2 overflow-hidden"
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
           >
-            Back to Home
-          </motion.button>
+            {/* Animated Smiley SVG */}
+            <motion.div
+              animate={{
+                rotate: [0, -8, 8, -5, 5, 0],
+                scale: [1, 1.1, 0.95, 1.05, 1]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                repeatDelay: 2,
+                ease: [0.4, 0.0, 0.2, 1]
+              }}
+              className="w-4 h-4"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                {/* Face circle */}
+                <motion.circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  fill="#FDE047"
+                  stroke="#EAB308"
+                  strokeWidth="1"
+                  animate={{
+                    scale: [1, 1.05, 0.98, 1.02, 1],
+                    fill: ["#FDE047", "#FBBF24", "#FDE047"]
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    repeatDelay: 2
+                  }}
+                />
+                {/* Eyes */}
+                <motion.circle
+                  cx="8.5"
+                  cy="9"
+                  r="1"
+                  fill="#92400E"
+                  animate={{
+                    scaleY: [1, 0.2, 1],
+                    y: [0, 1, 0]
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    repeat: Infinity,
+                    repeatDelay: 5,
+                    ease: "easeInOut"
+                  }}
+                />
+                <motion.circle
+                  cx="15.5"
+                  cy="9"
+                  r="1"
+                  fill="#92400E"
+                  animate={{
+                    scaleY: [1, 0.2, 1],
+                    y: [0, 1, 0]
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    repeat: Infinity,
+                    repeatDelay: 5,
+                    ease: "easeInOut",
+                    delay: 0.05
+                  }}
+                />
+                {/* Smile */}
+                <motion.path
+                  d="M7 13.5s2 3 5 3 5-3 5-3"
+                  stroke="#92400E"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  fill="none"
+                  animate={{
+                    d: [
+                      "M7 13.5s2 3 5 3 5-3 5-3",
+                      "M7 13.5s2 4 5 4 5-4 5-4",
+                      "M7 13.5s2 3 5 3 5-3 5-3"
+                    ]
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                    ease: "easeInOut"
+                  }}
+                />
+              </svg>
+            </motion.div>
+
+            <span className="relative z-10">Review</span>
+
+            {/* Subtle shimmer effect */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-lg"
+              animate={{
+                x: ['-100%', '100%']
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 3,
+                ease: "easeInOut"
+              }}
+            />
+          </motion.a>
         </div>
       </div>
     </div>
