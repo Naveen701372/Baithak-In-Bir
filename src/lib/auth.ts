@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseAdmin } from './supabase'
 import { User, LoginCredentials, CreateUserData, UserSession } from '@/types/auth'
 
 import { v4 as uuidv4 } from 'uuid'
@@ -116,8 +116,8 @@ export class AuthService {
   // Create new user (only owners can create users)
   static async createUser(userData: CreateUserData, createdBy: string): Promise<User> {
     try {
-      // First create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // First create user in Supabase Auth using admin client
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: userData.email,
         password: userData.password,
         email_confirm: true,
@@ -127,8 +127,8 @@ export class AuthService {
         throw new Error(`Failed to create auth user: ${authError.message}`)
       }
 
-      // Then create user in our user_profiles table
-      const { data: userRecord, error: userError } = await supabase
+      // Then create user in our user_profiles table using admin client
+      const { data: userRecord, error: userError } = await supabaseAdmin
         .from('user_profiles')
         .insert({
           id: authData.user.id,
@@ -142,7 +142,7 @@ export class AuthService {
 
       if (userError) {
         // If user creation fails, clean up auth user
-        await supabase.auth.admin.deleteUser(authData.user.id)
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
         throw new Error(`Failed to create user record: ${userError.message}`)
       }
 

@@ -59,9 +59,9 @@ function DashboardPage() {
 
   return (
     <AdminLayout title="Dashboard">
-      <div className="space-y-6">
-        {/* Stats Grid - Mobile Optimized */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="space-y-8">
+        {/* Stats Grid - Clean Design */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -70,21 +70,19 @@ function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow"
               >
-                <div className="text-center">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <Icon size={20} className="text-gray-700" />
-                  </div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1 leading-tight">
-                    {stat.name}
-                  </p>
-                  <p className="text-xl sm:text-2xl font-bold text-black mb-1">
+                <div className="flex items-center justify-between mb-4">
+                  <Icon size={20} className="text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-gray-900 mb-1">
                     {stat.value}
                   </p>
-                  <p className={`text-xs leading-tight ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {stat.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
                     {stat.change}
                   </p>
                 </div>
@@ -93,200 +91,153 @@ function DashboardPage() {
           })}
         </div>
 
-        {/* Inventory Alerts & Test Notifications */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <InventoryAlerts showInDashboard={true} maxItems={3} />
+        {/* Order Summary */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Today's Orders</h2>
+            <a
+              href="/admin/orders"
+              className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+            >
+              View all →
+            </a>
           </div>
-          <div>
-            <TestOrderButton />
+
+          {todaysOrders.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingBag size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">No orders received yet today</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Status</span>
+                <span className="text-gray-600">Count</span>
+              </div>
+              <div className="space-y-3">
+                {pendingOrders.length > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                      <span className="text-gray-900">Pending</span>
+                    </div>
+                    <span className="text-gray-900 font-medium">{pendingOrders.length}</span>
+                  </div>
+                )}
+                {preparingOrders.length > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                      <span className="text-gray-900">Preparing</span>
+                    </div>
+                    <span className="text-gray-900 font-medium">{preparingOrders.length}</span>
+                  </div>
+                )}
+                {readyOrders.length > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                      <span className="text-gray-900">Ready</span>
+                    </div>
+                    <span className="text-gray-900 font-medium">{readyOrders.length}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2 border-t border-gray-100 pt-3">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                    <span className="text-gray-900">Completed</span>
+                  </div>
+                  <span className="text-gray-900 font-medium">{completedOrders.length}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity & Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Orders */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Recent Orders</h3>
+              <a href="/admin/orders" className="text-sm text-gray-600 hover:text-gray-900">View all →</a>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 text-sm">Error loading orders</p>
+              </div>
+            ) : todaysOrders.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">No orders yet today</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {todaysOrders.slice(0, 5).map((order) => (
+                  <div key={order.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">#{order.order_number}</p>
+                      <p className="text-xs text-gray-500">{order.customer_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">₹{order.total_amount}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          order.status === 'preparing' ? 'bg-blue-100 text-blue-700' :
+                            order.status === 'ready' ? 'bg-green-100 text-green-700' :
+                              'bg-orange-100 text-orange-700'
+                        }`}>
+                        {order.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <a
+                href="/admin/orders"
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center"
+              >
+                <ShoppingBag size={20} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-900">Orders</p>
+              </a>
+
+              <a
+                href="/admin/menu"
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center"
+              >
+                <Users size={20} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-900">Menu</p>
+              </a>
+
+              <a
+                href="/admin/inventory"
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center"
+              >
+                <Package size={20} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-900">Inventory</p>
+              </a>
+
+              <a
+                href="/admin/analytics"
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center"
+              >
+                <TrendingUp size={20} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-900">Analytics</p>
+              </a>
+            </div>
           </div>
         </div>
 
-        {/* Order Management Sections */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 text-gray-600">Loading orders...</span>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-700">Error loading orders: {error}</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Pending Orders - Highest Priority */}
-            {pendingOrders.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-red-50 border border-red-200 rounded-xl p-4 sm:p-5"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base sm:text-lg font-semibold text-red-800 flex items-center">
-                    <AlertCircle className="mr-2 text-red-600" size={18} />
-                    Pending ({pendingOrders.length})
-                  </h2>
-                  <span className="text-xs sm:text-sm text-red-600 font-medium bg-red-100 px-2 py-1 rounded-full">
-                    Urgent
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                  {pendingOrders.map((order) => (
-                    <OrderCard 
-                      key={order.id} 
-                      order={order} 
-                      onStatusUpdate={updateOrderStatus}
-                      onCancelOrder={cancelOrder}
-                      onUpdatePaymentStatus={updatePaymentStatus}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Preparing Orders */}
-            {preparingOrders.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="bg-orange-50 border border-orange-200 rounded-xl p-4 sm:p-5"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base sm:text-lg font-semibold text-orange-800 flex items-center">
-                    <Clock className="mr-2 text-orange-600" size={18} />
-                    Preparing ({preparingOrders.length})
-                  </h2>
-                  <span className="text-xs sm:text-sm text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
-                    In Progress
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                  {preparingOrders.map((order) => (
-                    <OrderCard 
-                      key={order.id} 
-                      order={order} 
-                      onStatusUpdate={updateOrderStatus}
-                      onCancelOrder={cancelOrder}
-                      onUpdatePaymentStatus={updatePaymentStatus}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Ready Orders */}
-            {readyOrders.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-5"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base sm:text-lg font-semibold text-green-800 flex items-center">
-                    <CheckCircle className="mr-2 text-green-600" size={18} />
-                    Ready ({readyOrders.length})
-                  </h2>
-                  <span className="text-xs sm:text-sm text-green-600 font-medium bg-green-100 px-2 py-1 rounded-full">
-                    Ready to serve
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                  {readyOrders.map((order) => (
-                    <OrderCard 
-                      key={order.id} 
-                      order={order} 
-                      onStatusUpdate={updateOrderStatus}
-                      onCancelOrder={cancelOrder}
-                      onUpdatePaymentStatus={updatePaymentStatus}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* No Orders Message */}
-            {todaysOrders.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-gray-50 rounded-lg p-12 text-center"
-              >
-                <ShoppingBag size={48} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No orders today yet</h3>
-                <p className="text-gray-600">Orders will appear here as customers place them.</p>
-              </motion.div>
-            )}
-
-            {/* Completed Orders Summary */}
-            {completedOrders.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-                className="bg-green-50 border border-green-200 rounded-lg p-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-green-800">
-                      {completedOrders.length} Orders Completed Today
-                    </h3>
-                    <p className="text-green-600">Total revenue: ₹{todaysRevenue.toFixed(2)}</p>
-                  </div>
-                  <CheckCircle size={32} className="text-green-500" />
-                </div>
-              </motion.div>
-            )}
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
-        >
-          <h2 className="text-base sm:text-lg font-semibold text-black mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <a 
-              href="/admin/orders"
-              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
-            >
-              <ShoppingBag size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
-              <p className="font-medium text-black text-sm leading-tight">Orders</p>
-              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Manage orders</p>
-            </a>
-            
-            <a 
-              href="/admin/menu"
-              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
-            >
-              <Users size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
-              <p className="font-medium text-black text-sm leading-tight">Menu</p>
-              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Items & categories</p>
-            </a>
-            
-            <a 
-              href="/admin/inventory"
-              className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center block group"
-            >
-              <Package size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
-              <p className="font-medium text-black text-sm leading-tight">Inventory</p>
-              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Stock levels</p>
-            </a>
-            
-            <button className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-center group">
-              <TrendingUp size={20} className="text-gray-700 mb-2 mx-auto group-hover:text-black transition-colors" />
-              <p className="font-medium text-black text-sm leading-tight">Analytics</p>
-              <p className="text-xs text-gray-600 mt-1 hidden sm:block">Coming soon</p>
-            </button>
-          </div>
-        </motion.div>
       </div>
     </AdminLayout>
   )

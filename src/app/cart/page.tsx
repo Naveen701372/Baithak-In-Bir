@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { orderAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
 import LazyImage from '@/components/ui/LazyImage'
+import { useBrandingStyles } from '@/contexts/BrandingContext'
 
 interface CartItem {
   id: string
@@ -26,6 +27,7 @@ interface CustomerDetails {
 
 export default function CartPage() {
   const router = useRouter()
+  const branding = useBrandingStyles() // Apply branding styles
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
     name: '',
@@ -218,14 +220,28 @@ export default function CartPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="w-32 h-32 bg-gradient-to-br from-teal-100 to-cyan-200 rounded-full flex items-center justify-center mx-auto mb-8">
-              <ShoppingCart size={48} className="text-teal-600" />
+            <div
+              className="w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-8"
+              style={{
+                background: `linear-gradient(to bottom right, ${branding.colors.accent}, ${branding.colors.primary}20)`
+              }}
+            >
+              <ShoppingCart size={48} style={{ color: branding.colors.secondary }} />
             </div>
             <h1 className="text-3xl font-light text-black mb-4">Your cart is empty</h1>
             <p className="text-gray-600 mb-12 text-lg font-light">Discover delicious items from our menu</p>
             <motion.button
               onClick={() => router.push('/menu')}
-              className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-12 py-4 font-light tracking-wide hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 rounded-xl shadow-lg"
+              className="text-white px-12 py-4 font-light tracking-wide transition-all duration-300 rounded-xl shadow-lg"
+              style={{
+                background: `linear-gradient(to right, ${branding.colors.primary}, ${branding.colors.secondary})`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `linear-gradient(to right, ${branding.colors.secondary}, ${branding.colors.primary})`
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = `linear-gradient(to right, ${branding.colors.primary}, ${branding.colors.secondary})`
+              }}
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.02 }}
             >
@@ -264,8 +280,16 @@ export default function CartPage() {
             >
               <Trash2 size={18} />
             </motion.button>
-            <div className="bg-teal-100 px-3 py-1 rounded-full">
-              <span className="text-teal-700 text-sm font-medium">{getTotalItems()}</span>
+            <div
+              className="px-3 py-1 rounded-full"
+              style={{ backgroundColor: branding.colors.accent }}
+            >
+              <span
+                className="text-sm font-medium"
+                style={{ color: branding.colors.secondary }}
+              >
+                {getTotalItems()}
+              </span>
             </div>
           </div>
         </div>
@@ -289,7 +313,12 @@ export default function CartPage() {
                 >
                   <div className="flex items-start space-x-3">
                     {/* Item Thumbnail */}
-                    <div className="w-14 h-14 bg-gradient-to-br from-teal-100 to-cyan-200 rounded-xl flex-shrink-0 overflow-hidden">
+                    <div
+                      className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${branding.colors.accent}, ${branding.colors.primary}20)`
+                      }}
+                    >
                       {item.image_url && item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.name) ? (
                         <LazyImage
                           src={item.image_url}
@@ -330,7 +359,12 @@ export default function CartPage() {
 
                       {/* Bottom Row: Unit Price & Quantity Controls */}
                       <div className="flex justify-between items-center">
-                        <p className="text-teal-600 font-semibold text-sm">₹{item.price} each</p>
+                        <p
+                          className="font-semibold text-sm"
+                          style={{ color: branding.colors.secondary }}
+                        >
+                          ₹{item.price} each
+                        </p>
                         <div className="flex items-center space-x-1.5">
                           <motion.button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -350,7 +384,17 @@ export default function CartPage() {
                           </motion.span>
                           <motion.button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="w-6 h-6 bg-teal-500 hover:bg-teal-600 text-white flex items-center justify-center transition-colors rounded-md"
+                            className="w-6 h-6 text-white flex items-center justify-center transition-colors rounded-md"
+                            style={{
+                              backgroundColor: branding.colors.primary,
+                              ':hover': { backgroundColor: branding.colors.secondary }
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = branding.colors.secondary
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = branding.colors.primary
+                            }}
                             whileTap={{ scale: 0.9 }}
                           >
                             <Plus size={12} strokeWidth={2.5} />
@@ -374,7 +418,7 @@ export default function CartPage() {
           transition={{ delay: 0.3 }}
         >
           <h2 className="text-xl font-medium text-black mb-6 flex items-center">
-            <User size={20} className="mr-3 text-teal-600" />
+            <User size={20} className="mr-3" style={{ color: branding.colors.secondary }} />
             Contact Details
           </h2>
 
@@ -387,8 +431,17 @@ export default function CartPage() {
                 type="text"
                 value={customerDetails.name}
                 onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
-                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
                   }`}
+                style={{
+                  '--focus-ring-color': branding.colors.primary
+                } as any}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${branding.colors.primary}`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = ''
+                }}
                 placeholder="Enter your full name"
               />
               {errors.name && <p className="text-red-500 text-sm mt-2 font-medium">{errors.name}</p>}
@@ -402,8 +455,14 @@ export default function CartPage() {
                 type="tel"
                 value={customerDetails.phone}
                 onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
-                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                className={`w-full px-4 py-4 border rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-300 ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200'
                   }`}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${branding.colors.primary}`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = ''
+                }}
                 placeholder="Enter your phone number"
               />
               {errors.phone && <p className="text-red-500 text-sm mt-2 font-medium">{errors.phone}</p>}
@@ -417,8 +476,14 @@ export default function CartPage() {
               <textarea
                 value={customerDetails.notes}
                 onChange={(e) => setCustomerDetails(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-4 py-4 border border-gray-200 rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none placeholder:text-gray-300"
+                className="w-full px-4 py-4 border border-gray-200 rounded-xl font-medium text-black bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all resize-none placeholder:text-gray-300"
                 rows={3}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${branding.colors.primary}`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = ''
+                }}
                 placeholder="Any special requests or dietary preferences..."
               />
             </div>
@@ -428,22 +493,36 @@ export default function CartPage() {
 
       {/* Fixed Bottom Order Summary - Glass UI */}
       <div className="fixed bottom-0 left-0 right-0 p-4 z-50">
-        <div className="bg-gradient-to-r from-teal-500/90 to-cyan-500/90 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white shadow-2xl">
+        <div
+          className="backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white shadow-2xl"
+          style={{
+            background: `linear-gradient(to right, ${branding.colors.primary}E6, ${branding.colors.secondary}E6)`
+          }}
+        >
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-2xl font-bold">₹{getTotalPrice()}</p>
-              <p className="text-sm text-teal-100">{getTotalItems()} items</p>
+              <p
+                className="text-sm"
+                style={{ color: branding.colors.accent }}
+              >
+                {getTotalItems()} items
+              </p>
             </div>
             <motion.button
               onClick={handleSubmitOrder}
               disabled={isSubmitting || cart.length === 0}
-              className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-3 font-semibold tracking-wide hover:bg-white/95 transition-all duration-200 rounded-xl shadow-lg border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-white/90 backdrop-blur-sm px-6 py-3 font-semibold tracking-wide hover:bg-white/95 transition-all duration-200 rounded-xl shadow-lg border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: branding.colors.secondary }}
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.02 }}
             >
               {isSubmitting ? (
                 <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div
+                    className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
+                    style={{ borderColor: branding.colors.secondary }}
+                  ></div>
                   <span>Placing...</span>
                 </div>
               ) : (

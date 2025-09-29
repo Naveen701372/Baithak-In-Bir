@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Category, MenuItem, menuAPI } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
 import LazyImage from '@/components/ui/LazyImage'
+import { useBrandingStyles } from '@/contexts/BrandingContext'
 
 // Mock data for development (will be replaced with real data)
 const mockCategories: Category[] = [
@@ -271,12 +272,13 @@ const getAnimationVariants = (categoryName: string): Variants => {
 }
 
 // Animated Food Item Component
-const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quantity }: {
+const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quantity, branding }: {
   item: MenuItem
   category: Category
   onAddToCart: (item: MenuItem) => void
   onRemoveFromCart: (itemId: string) => void
   quantity: number
+  branding: any
 }) => {
   const ref = useRef(null)
   const isInView = useInView(ref, {
@@ -290,18 +292,24 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
     <motion.div
       ref={ref}
       className={`flex-shrink-0 w-72 bg-white rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 ${quantity > 0
-        ? 'border-2 border-teal-300 shadow-md ring-2 ring-teal-200'
+        ? 'border-2 shadow-md'
         : 'border border-gray-100'
         }`}
+      style={quantity > 0 ? {
+        borderColor: branding.colors.primary,
+        boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 3px ${branding.colors.accent}`
+      } : {}}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       whileHover={{ y: -2 }}
     >
       {/* Item Image */}
-      <div className={`h-48 relative overflow-hidden transition-all duration-300 ${quantity > 0
-        ? 'bg-gradient-to-br from-teal-100 to-cyan-200'
-        : 'bg-gradient-to-br from-gray-50 to-gray-100'
-        }`}>
+      <div
+        className={`h-48 relative overflow-hidden transition-all duration-300 ${quantity === 0 ? 'bg-gradient-to-br from-gray-50 to-gray-100' : ''}`}
+        style={quantity > 0 ? {
+          background: `linear-gradient(to bottom right, ${branding.colors.accent}, ${branding.colors.primary}20)`
+        } : {}}
+      >
         {item.image_url && item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.name) ? (
           // Show actual image with lazy loading
           <LazyImage
@@ -389,14 +397,16 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
               >
                 <motion.button
                   onClick={() => onRemoveFromCart(item.id)}
-                  className="w-9 h-9 bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 transition-colors rounded-sm"
+                  className="w-9 h-9 text-white flex items-center justify-center transition-colors rounded-sm"
+                  style={{ backgroundColor: branding.colors.primary }}
                   whileTap={{ scale: 0.9 }}
                   whileHover={{ scale: 1.05 }}
                 >
                   <Minus size={16} strokeWidth={2.5} />
                 </motion.button>
                 <motion.span
-                  className="text-teal-600 font-medium min-w-[24px] text-center text-lg"
+                  className="font-medium min-w-[24px] text-center text-lg"
+                  style={{ color: branding.colors.secondary }}
                   key={quantity}
                   initial={{ scale: 1.2 }}
                   animate={{ scale: 1 }}
@@ -406,7 +416,8 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
                 </motion.span>
                 <motion.button
                   onClick={() => onAddToCart(item)}
-                  className="w-9 h-9 bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 transition-colors rounded-sm"
+                  className="w-9 h-9 text-white flex items-center justify-center transition-colors rounded-sm"
+                  style={{ backgroundColor: branding.colors.primary }}
                   whileTap={{ scale: 0.9 }}
                   whileHover={{ scale: 1.05 }}
                 >
@@ -416,7 +427,20 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
             ) : (
               <motion.button
                 onClick={() => onAddToCart(item)}
-                className="px-4 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors font-light tracking-wide rounded-sm"
+                className="px-4 py-2 border hover:text-white transition-colors font-light tracking-wide rounded-sm"
+                style={{
+                  borderColor: branding.colors.primary,
+                  color: branding.colors.primary,
+                  '--hover-bg': branding.colors.primary
+                } as any}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = branding.colors.primary
+                  e.currentTarget.style.color = 'white'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = branding.colors.primary
+                }}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
               >
@@ -432,6 +456,7 @@ const AnimatedFoodItem = ({ item, category, onAddToCart, onRemoveFromCart, quant
 
 export default function MenuPage() {
   const router = useRouter()
+  const branding = useBrandingStyles() // Apply branding styles
   const [categories, setCategories] = useState<Category[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -630,6 +655,7 @@ export default function MenuPage() {
                       onAddToCart={addToCart}
                       onRemoveFromCart={removeFromCart}
                       quantity={getItemQuantity(item.id)}
+                      branding={branding}
                     />
                   ))}
                 </div>
@@ -687,9 +713,10 @@ export default function MenuPage() {
           <motion.button
             onClick={() => setShowSearch(!showSearch)}
             className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 ${showSearch || searchTerm
-                ? 'bg-teal-500 text-white'
-                : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
+              ? 'text-white'
+              : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
               }`}
+            style={showSearch || searchTerm ? { backgroundColor: branding.colors.primary } : {}}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
           >
@@ -732,9 +759,10 @@ export default function MenuPage() {
                     <button
                       onClick={() => setSelectedCategory(null)}
                       className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${!selectedCategory
-                          ? 'bg-teal-100 text-teal-800'
-                          : 'text-gray-700 hover:bg-gray-100'
+                        ? ''
+                        : 'text-gray-700 hover:bg-gray-100'
                         }`}
+                      style={!selectedCategory ? { backgroundColor: branding.colors.accent, color: branding.colors.secondary } : {}}
                     >
                       All Categories
                     </button>
@@ -743,9 +771,10 @@ export default function MenuPage() {
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
                         className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${selectedCategory === category.id
-                            ? 'bg-teal-100 text-teal-800'
-                            : 'text-gray-700 hover:bg-gray-100'
+                          ? ''
+                          : 'text-gray-700 hover:bg-gray-100'
                           }`}
+                        style={selectedCategory === category.id ? { backgroundColor: branding.colors.accent, color: branding.colors.secondary } : {}}
                       >
                         {category.name}
                       </button>
@@ -759,9 +788,10 @@ export default function MenuPage() {
           <motion.button
             onClick={() => setShowFilter(!showFilter)}
             className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 ${showFilter || selectedCategory
-                ? 'bg-teal-500 text-white'
-                : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
+              ? 'text-white'
+              : 'bg-white/95 backdrop-blur-md text-gray-700 border border-gray-200'
               }`}
+            style={showFilter || selectedCategory ? { backgroundColor: branding.colors.primary } : {}}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
           >
@@ -773,7 +803,10 @@ export default function MenuPage() {
       {/* Floating Cart */}
       {getTotalItems() > 0 && (
         <motion.div
-          className="fixed bottom-4 left-4 right-4 bg-gradient-to-r from-teal-500/80 to-cyan-500/80 backdrop-blur-md border border-white/20 text-white p-4 rounded-xl shadow-2xl z-50"
+          className="fixed bottom-4 left-4 right-4 backdrop-blur-md border border-white/20 text-white p-4 rounded-xl shadow-2xl z-50"
+          style={{
+            background: `linear-gradient(to right, ${branding.colors.primary}CC, ${branding.colors.secondary}CC)`
+          }}
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -809,7 +842,8 @@ export default function MenuPage() {
               </motion.button>
               <motion.button
                 onClick={() => router.push('/cart')}
-                className="bg-white/90 backdrop-blur-sm text-teal-600 px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
+                className="bg-white/90 backdrop-blur-sm px-6 py-2 font-medium tracking-wide hover:bg-white/95 transition-all duration-200 rounded-lg border border-white/30 shadow-lg"
+                style={{ color: branding.colors.secondary }}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
               >

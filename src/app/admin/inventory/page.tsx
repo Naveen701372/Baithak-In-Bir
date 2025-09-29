@@ -2,11 +2,14 @@
 
 import AdminLayout from '@/components/admin/AdminLayout'
 import InventoryManagement from '@/components/admin/InventoryManagement'
+import { withAuth } from '@/contexts/AuthContext'
 
-export default function InventoryPage() {
+function InventoryPage() {
   return (
     <AdminLayout title="Inventory Management">
       <InventoryManagement />
     </AdminLayout>
   )
 }
+
+export default withAuth(InventoryPage, 'inventory')

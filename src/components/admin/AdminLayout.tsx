@@ -14,15 +14,19 @@ import {
   LogOut,
   X,
   ChevronDown,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface AdminLayoutProps {
   children: React.ReactNode
   title?: string
+  showRealtimeStatus?: boolean
+  isConnected?: boolean
 }
 
-export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayoutProps) {
+export default function AdminLayout({ children, title = 'Dashboard', showRealtimeStatus = false, isConnected = false }: AdminLayoutProps) {
   const router = useRouter()
   const { user, logout, hasPermission } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -73,12 +77,6 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
       href: '/admin/users',
       icon: Users,
       permission: 'users' as const,
-    },
-    {
-      name: 'Debug Real-time',
-      href: '/admin/debug-realtime',
-      icon: Settings,
-      permission: 'orders' as const,
     },
     {
       name: 'Settings',
@@ -139,7 +137,7 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
               {filteredNavigation.map((item) => {
                 const Icon = item.icon
                 const isActive = typeof window !== 'undefined' && window.location.pathname === item.href
-                
+
                 return (
                   <li key={item.name}>
                     <button
@@ -147,11 +145,10 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
                         router.push(item.href)
                         setSidebarOpen(false)
                       }}
-                      className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-gray-100 text-black font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${isActive
+                        ? 'bg-gray-100 text-black font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       <Icon size={18} className="mr-3" />
                       <span className="font-medium">{item.name}</span>
@@ -218,9 +215,20 @@ export default function AdminLayout({ children, title = 'Dashboard' }: AdminLayo
               >
                 <MenuIcon size={20} className="text-gray-700" />
               </button>
-              <h1 className="text-xl font-semibold text-black">{title}</h1>
+              <div className="flex items-center space-x-3">
+                <h1 className="text-xl font-semibold text-black">{title}</h1>
+                {showRealtimeStatus && (
+                  <div className="flex items-center ml-3">
+                    {isConnected ? (
+                      <Wifi size={16} className="text-green-600" />
+                    ) : (
+                      <WifiOff size={16} className="text-red-600" />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="hidden sm:block text-right">
                 <p className="text-sm font-medium text-black">{user?.email}</p>

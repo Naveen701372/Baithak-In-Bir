@@ -76,7 +76,7 @@ export const DEFAULT_PERMISSIONS: Record<UserRole, Permission> = {
     settings: false,
   },
   staff: {
-    dashboard: true,
+    dashboard: false,
     orders: true,
     menu: false,
     inventory: false,

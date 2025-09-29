@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Menu } from 'lucide-react'
+import BrandingDisplay from '@/components/ui/BrandingDisplay'
 
 export function Header() {
   return (
@@ -10,9 +11,12 @@ export function Header() {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <span className="text-2xl font-light text-black tracking-wide">
-              Baithak In Bir
-            </span>
+            <BrandingDisplay
+              size="lg"
+              logoClassName="h-12 w-auto object-contain"
+              textClassName="text-2xl font-light tracking-wide"
+              showTagline={true}
+            />
           </Link>
 
           {/* Navigation */}

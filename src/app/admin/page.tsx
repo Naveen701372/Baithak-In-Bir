@@ -11,7 +11,15 @@ export default function AdminPage() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        router.push('/admin/dashboard')
+        // Redirect based on user permissions
+        if (user.permissions.dashboard) {
+          router.push('/admin/dashboard')
+        } else if (user.permissions.orders) {
+          router.push('/admin/orders')
+        } else {
+          // No permissions, logout
+          router.push('/admin/login')
+        }
       } else {
         router.push('/admin/login')
       }

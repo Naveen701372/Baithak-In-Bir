@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       const { user: userData, session } = await AuthService.login(credentials)
-      
+
       // Store session token
       localStorage.setItem('session_token', session.session_token)
       setUser(userData)
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionToken) {
         await AuthService.logout(sessionToken)
       }
-      
+
       localStorage.removeItem('session_token')
       setUser(null)
     } catch (error) {
@@ -137,11 +137,24 @@ export function withAuth<P extends object>(
     }
 
     if (requiredPermission && !hasPermission(requiredPermission)) {
+      // Special handling for staff members trying to access dashboard
+      if (requiredPermission === 'dashboard' && user?.role === 'staff') {
+        // Redirect staff to orders page
+        window.location.href = '/admin/orders'
+        return null
+      }
+
       return (
         <div className="min-h-screen bg-white flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-light text-black mb-2">Access Denied</h1>
             <p className="text-gray-600 mb-8">You don&apos;t have permission to access this page.</p>
+            <button
+              onClick={() => window.location.href = user?.permissions.orders ? '/admin/orders' : '/admin/login'}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Go to {user?.permissions.orders ? 'Orders' : 'Login'}
+            </button>
           </div>
         </div>
       )

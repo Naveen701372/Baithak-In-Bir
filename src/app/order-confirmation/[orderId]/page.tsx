@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { orderAPI, Order, OrderItem } from '@/lib/supabase'
 import { getFoodIcon } from '@/components/food-icons'
 import LazyImage from '@/components/ui/LazyImage'
+import { useBrandingStyles } from '@/contexts/BrandingContext'
 
 interface OrderWithItems extends Order {
   items: OrderItem[]
@@ -15,6 +16,7 @@ interface OrderWithItems extends Order {
 export default function OrderConfirmationPage({ params }: { params: Promise<{ orderId: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
+  const branding = useBrandingStyles() // Apply branding styles
   const [order, setOrder] = useState<OrderWithItems | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +43,10 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div
+            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: branding.colors.primary, borderTopColor: 'transparent' }}
+          ></div>
           <p className="text-gray-600 font-light">Loading order details...</p>
         </div>
       </div>
@@ -75,9 +80,19 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
       case 'confirmed': return 'text-blue-600 bg-blue-100'
       case 'preparing': return 'text-orange-600 bg-orange-100'
       case 'ready': return 'text-green-600 bg-green-100'
-      case 'completed': return 'text-teal-600 bg-teal-100'
+      case 'completed': return ''
       default: return 'text-gray-600 bg-gray-100'
     }
+  }
+
+  const getStatusStyle = (status: string) => {
+    if (status === 'completed') {
+      return {
+        color: branding.colors.secondary,
+        backgroundColor: branding.colors.accent
+      }
+    }
+    return {}
   }
 
   const getStatusText = (status: string) => {
@@ -94,7 +109,12 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
   return (
     <div className="min-h-screen bg-white">
       {/* Success Header with Better Vector Art */}
-      <div className="bg-gradient-to-br from-teal-50 to-cyan-100 px-4 py-8">
+      <div
+        className="px-4 py-8"
+        style={{
+          background: `linear-gradient(to bottom right, ${branding.colors.accent}, ${branding.colors.primary}20)`
+        }}
+      >
         <div className="text-center">
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -103,16 +123,20 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
             className="relative w-24 h-24 mx-auto mb-4"
           >
             {/* Animated Success Icon with Background */}
-            <div className="absolute inset-0 bg-teal-500 rounded-full"></div>
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{ backgroundColor: branding.colors.primary }}
+            ></div>
             <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-              <CheckCircle size={32} className="text-teal-500" />
+              <CheckCircle size={32} style={{ color: branding.colors.primary }} />
             </div>
             {/* Animated Ring */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1.2, opacity: 0 }}
               transition={{ delay: 0.5, duration: 1, repeat: Infinity, repeatDelay: 2 }}
-              className="absolute inset-0 border-2 border-teal-300 rounded-full"
+              className="absolute inset-0 border-2 rounded-full"
+              style={{ borderColor: branding.colors.accent }}
             />
           </motion.div>
 
@@ -138,7 +162,10 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
             transition={{ delay: 0.4 }}
           >
             <div className="space-y-2">
-              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+              <div
+                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}
+                style={getStatusStyle(order.status)}
+              >
                 <Clock size={12} className="mr-1" />
                 {getStatusText(order.status)}
               </div>
@@ -162,16 +189,16 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           >
             <div className="space-y-2">
               <div className="flex items-center">
-                <User size={14} className="text-teal-500 mr-2" />
+                <User size={14} className="mr-2" style={{ color: branding.colors.secondary }} />
                 <span className="text-sm font-medium text-black">{order.customer_name}</span>
               </div>
               <div className="flex items-center">
-                <Phone size={14} className="text-teal-500 mr-2" />
+                <Phone size={14} className="mr-2" style={{ color: branding.colors.secondary }} />
                 <span className="text-sm text-gray-700">{order.customer_phone}</span>
               </div>
               {order.notes && (
                 <div className="flex items-start">
-                  <FileText size={14} className="text-teal-500 mr-2 mt-0.5" />
+                  <FileText size={14} className="mr-2 mt-0.5" style={{ color: branding.colors.secondary }} />
                   <span className="text-xs text-gray-700 line-clamp-2">{order.notes}</span>
                 </div>
               )}
@@ -187,7 +214,10 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           transition={{ delay: 0.5 }}
         >
           <h3 className="text-lg font-medium text-black mb-4 flex items-center">
-            <div className="w-3 h-3 bg-teal-500 rounded-full mr-3"></div>
+            <div
+              className="w-3 h-3 rounded-full mr-3"
+              style={{ backgroundColor: branding.colors.primary }}
+            ></div>
             Your Order
           </h3>
           <div className="space-y-4">
@@ -195,7 +225,12 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
               <div key={item.id} className="flex items-center py-3 border-b border-gray-50 last:border-b-0">
                 {/* Item thumbnail with quantity */}
                 <div className="relative mr-4">
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-100 to-cyan-200">
+                  <div
+                    className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0"
+                    style={{
+                      background: `linear-gradient(to bottom right, ${branding.colors.accent}, ${branding.colors.primary}20)`
+                    }}
+                  >
                     {item.menu_item?.image_url && item.menu_item.image_url !== '/api/placeholder/300/200?text=' + encodeURIComponent(item.menu_item.name) ? (
                       <LazyImage
                         src={item.menu_item.image_url}
@@ -205,7 +240,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
                           <div className="w-full h-full flex items-center justify-center">
                             {(() => {
                               const IconComponent = getFoodIcon('Unknown', item.menu_item?.name || 'Unknown Item')
-                              return <IconComponent className="w-6 h-6 text-teal-600" />
+                              return <IconComponent className="w-6 h-6" style={{ color: branding.colors.secondary }} />
                             })()}
                           </div>
                         }
@@ -214,13 +249,16 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
                       <div className="w-full h-full flex items-center justify-center">
                         {(() => {
                           const IconComponent = getFoodIcon('Unknown', item.menu_item?.name || 'Unknown Item')
-                          return <IconComponent className="w-6 h-6 text-teal-600" />
+                          return <IconComponent className="w-6 h-6" style={{ color: branding.colors.secondary }} />
                         })()}
                       </div>
                     )}
                   </div>
                   {/* Quantity badge */}
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-teal-500 text-white rounded-full flex items-center justify-center text-xs font-semibold shadow-lg">
+                  <div
+                    className="absolute -top-1 -right-1 w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-semibold shadow-lg"
+                    style={{ backgroundColor: branding.colors.primary }}
+                  >
                     {item.quantity}
                   </div>
                 </div>
@@ -239,20 +277,31 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex items-center justify-between">
               <span className="text-lg font-semibold text-black">Total</span>
-              <span className="text-xl font-semibold text-teal-600">₹{order.total_amount}</span>
+              <span
+                className="text-xl font-semibold"
+                style={{ color: branding.colors.secondary }}
+              >
+                ₹{order.total_amount}
+              </span>
             </div>
           </div>
         </motion.div>
 
         {/* Next Steps */}
         <motion.div
-          className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-100 rounded-lg p-5"
+          className="rounded-lg p-5"
+          style={{
+            background: `linear-gradient(to right, ${branding.colors.accent}, ${branding.colors.primary}10)`,
+            borderColor: branding.colors.accent,
+            borderWidth: '1px',
+            borderStyle: 'solid'
+          }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
           <h3 className="text-base font-medium text-black mb-3 flex items-center">
-            <Clock size={16} className="text-teal-500 mr-2" />
+            <Clock size={16} className="mr-2" style={{ color: branding.colors.secondary }} />
             What&apos;s Next?
           </h3>
           <div className="space-y-2 text-sm text-gray-700">
@@ -266,7 +315,14 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
         <div className="grid grid-cols-2 gap-3 pt-4">
           <motion.button
             onClick={() => router.push('/menu')}
-            className="bg-teal-600 text-white py-3 px-4 text-sm font-medium tracking-wide hover:bg-teal-700 transition-colors rounded-lg"
+            className="text-white py-3 px-4 text-sm font-medium tracking-wide transition-colors rounded-lg"
+            style={{ backgroundColor: branding.colors.primary }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = branding.colors.secondary
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = branding.colors.primary
+            }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

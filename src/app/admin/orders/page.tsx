@@ -88,17 +88,8 @@ function OrdersPage() {
   ]
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Order Management" showRealtimeStatus={true} isConnected={isConnected}>
       <div className="space-y-6">
-
-        {/* Header with Real-time Status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
-            <RealtimeStatusIndicator isConnected={isConnected} />
-          </div>
-        </div>
-
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg border border-gray-200 p-1">
