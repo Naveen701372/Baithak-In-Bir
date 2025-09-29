@@ -14,12 +14,12 @@ import RealtimeStatusIndicator from '@/components/admin/RealtimeStatusIndicator'
 function OrdersPage() {
   const { 
     orders, 
+    todaysOrders,
     loading, 
     error, 
     updateOrderStatus, 
     cancelOrder, 
     updatePaymentStatus, 
-    completeItemUnit, 
     updateItemStatus,
     isConnected,
     newOrderNotification,
@@ -271,8 +271,7 @@ function OrdersPage() {
         ) : (
           /* Kitchen Management View */
           <ItemManagement 
-            orders={orders}
-            onCompleteItemUnit={completeItemUnit}
+            orders={todaysOrders}
             onUpdateItemStatus={updateItemStatus}
           />
         )}

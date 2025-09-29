@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Upload, Plus, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 
 interface MenuItem {
@@ -105,7 +106,7 @@ export default function MenuItemForm({ item, categories, onClose, onSuccess }: M
         .eq('menu_item_id', menuItemId)
 
       if (error) throw error
-      setInventoryRequirements((data || []).map((item: any) => ({
+      setInventoryRequirements((data || []).map((item: { inventory_item_id: string; quantity_required: number; inventory_items: unknown }) => ({
         inventory_item_id: item.inventory_item_id,
         quantity_required: item.quantity_required,
         inventory_items: Array.isArray(item.inventory_items) ? item.inventory_items[0] : item.inventory_items
@@ -163,7 +164,7 @@ export default function MenuItemForm({ item, categories, onClose, onSuccess }: M
     ])
   }
 
-  const updateInventoryRequirement = (index: number, field: keyof InventoryRequirement, value: any) => {
+  const updateInventoryRequirement = (index: number, field: keyof InventoryRequirement, value: string | number) => {
     setInventoryRequirements(prev => 
       prev.map((req, i) => 
         i === index ? { ...req, [field]: value } : req
@@ -401,9 +402,11 @@ export default function MenuItemForm({ item, categories, onClose, onSuccess }: M
             <div className="flex items-center space-x-4">
               <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden">
                 {imagePreview ? (
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Preview"
+                    width={96}
+                    height={96}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -451,7 +454,7 @@ export default function MenuItemForm({ item, categories, onClose, onSuccess }: M
 
             {inventoryRequirements.length === 0 ? (
               <p className="text-gray-500 text-sm">
-                No inventory requirements added. Click "Add Requirement" to link inventory items.
+                No inventory requirements added. Click &quot;Add Requirement&quot; to link inventory items.
               </p>
             ) : (
               <div className="space-y-3">

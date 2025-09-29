@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Edit, Trash2, Shield, User, Mail } from 'lucide-react'
+import { Plus, Edit, Trash2, User } from 'lucide-react'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { withAuth } from '@/contexts/AuthContext'
 import { AuthService } from '@/lib/auth'

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, Package, X, TrendingUp } from 'lucide-react'
 import { useInventory } from '@/hooks/useInventory'
@@ -28,7 +28,7 @@ export default function InventoryAlerts({ showInDashboard = false, maxItems = 5 
       try {
         await restockItem(alertId, Number(quantity))
         handleDismiss(alertId)
-      } catch (error) {
+      } catch {
         alert('Failed to restock item')
       }
     }

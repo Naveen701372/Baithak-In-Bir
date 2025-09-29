@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle, Clock, User, Phone, FileText, Receipt } from 'lucide-react'
+import { CheckCircle, Clock, User, Phone, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { orderAPI, Order, OrderItem } from '@/lib/supabase'
 
@@ -120,7 +120,7 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
             transition={{ delay: 0.3 }}
           >
             <h1 className="text-2xl font-light text-black mb-1">Order Confirmed!</h1>
-            <p className="text-gray-600 font-light text-sm">We're preparing your delicious meal</p>
+            <p className="text-gray-600 font-light text-sm">We&apos;re preparing your delicious meal</p>
           </motion.div>
         </div>
       </div>

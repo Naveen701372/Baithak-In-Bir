@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 import { 
   Plus, 
   Edit, 
   Trash2, 
   Upload, 
   Search, 
-  Filter,
   Eye,
   EyeOff,
   Star,
@@ -271,9 +271,11 @@ export default function MenuManagement() {
               {/* Image */}
               <div className="relative h-48 bg-gray-100">
                 {item.image_url ? (
-                  <img
+                  <Image
                     src={item.image_url}
                     alt={item.name}
+                    width={400}
+                    height={192}
                     className="w-full h-full object-cover"
                   />
                 ) : (

@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function DebugAuthPage() {
-    const [users, setUsers] = useState<any[]>([])
-    const [sessions, setSessions] = useState<any[]>([])
-    const [currentUser, setCurrentUser] = useState<any>(null)
+    const [users, setUsers] = useState<unknown[]>([])
+    const [sessions, setSessions] = useState<unknown[]>([])
+    const [currentUser, setCurrentUser] = useState<unknown>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -69,7 +69,7 @@ export default function DebugAuthPage() {
             const authUserId = signInData.user.id
 
             // Insert into custom user_profiles table with correct ID
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('user_profiles')
                 .insert({
                     id: authUserId, // Use the actual Supabase Auth ID
@@ -114,7 +114,7 @@ export default function DebugAuthPage() {
                         <p className="text-gray-500">No users found in user_profiles table</p>
                     ) : (
                         <div className="space-y-2">
-                            {users.map(user => (
+                            {users.map((user: any) => (
                                 <div key={user.id} className="p-2 bg-gray-50 rounded">
                                     <p><strong>ID:</strong> {user.id}</p>
                                     <p><strong>Email:</strong> {user.email}</p>
@@ -209,14 +209,14 @@ export default function DebugAuthPage() {
                     <li><strong>Email:</strong> baithakinbir@gmail.com</li>
                     <li><strong>Password:</strong> admin123</li>
                     <li><strong>Auto Confirm User:</strong> ✅ Check this box</li>
-                    <li><strong>Then:</strong> Click "Create Test User" button below</li>
+                    <li><strong>Then:</strong> Click &quot;Create Test User&quot; button below</li>
                     <li><strong>Finally:</strong> Try logging in at /admin/login</li>
                 </ol>
             </div>
 
             <div className="mt-4 p-4 bg-blue-50 rounded">
                 <h3 className="font-semibold mb-2">Alternative Manual Fix:</h3>
-                <p className="text-sm mb-2">If the button doesn't work, run this SQL in Supabase SQL Editor:</p>
+                <p className="text-sm mb-2">If the button doesn&apos;t work, run this SQL in Supabase SQL Editor:</p>
                 <code className="block bg-gray-100 p-2 rounded text-xs">
                     {`-- First get your auth user ID:
 SELECT id, email FROM auth.users WHERE email = 'baithakinbir@gmail.com';

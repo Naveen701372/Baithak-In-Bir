@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export function useOrderNotifications() {
-  const lastOrderCountRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {

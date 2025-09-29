@@ -5,8 +5,15 @@ import { supabase } from '@/lib/supabase'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { withAuth } from '@/contexts/AuthContext'
 
+interface TestResult {
+  success: boolean
+  message?: string
+  error?: string
+  data?: unknown
+}
+
 function TestDbSchemaPage() {
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<TestResult | null>(null)
   const [loading, setLoading] = useState(false)
 
   const testSchema = async () => {
@@ -33,17 +40,8 @@ function TestDbSchemaPage() {
   const runEnhancements = async () => {
     setLoading(true)
     try {
-      // Try to add the columns if they don't exist
-      const enhancements = [
-        'ALTER TABLE order_items ADD COLUMN IF NOT EXISTS completed_quantity INTEGER DEFAULT 0',
-        'ALTER TABLE order_items ADD COLUMN IF NOT EXISTS item_status VARCHAR(20) DEFAULT \'pending\'',
-        'ALTER TABLE order_items ADD COLUMN IF NOT EXISTS notes TEXT',
-        'ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT \'pending\'',
-        'ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE',
-        'ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_reason TEXT'
-      ]
-
-      // Since we can't run DDL directly, we'll just test the current schema
+      // Since we can't run DDL directly from the client, we'll just test the current schema
+      // The required columns should be added via the database migration scripts
       await testSchema()
     } catch (err) {
       setResult({ error: err instanceof Error ? err.message : 'Unknown error', success: false })
@@ -82,7 +80,7 @@ function TestDbSchemaPage() {
                 {result.success ? (
                   <div>
                     <p className="font-medium">✅ {result.message}</p>
-                    {result.data && (
+                    {result.data !== undefined && result.data !== null && (
                       <pre className="mt-2 text-xs bg-white p-2 rounded border">
                         {JSON.stringify(result.data, null, 2)}
                       </pre>

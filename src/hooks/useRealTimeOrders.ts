@@ -25,11 +25,12 @@ export function useRealTimeOrders() {
         }
 
         try {
+            console.log('Establishing real-time connection...')
             const eventSource = new EventSource('/api/orders/realtime')
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {
-                console.log('Real-time connection opened')
+                console.log('✅ Real-time connection opened successfully')
                 setIsConnected(true)
                 setError(null)
                 setReconnectAttempts(0)

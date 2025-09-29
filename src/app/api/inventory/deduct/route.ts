@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+interface InventoryRequirement {
+  inventory_item_id: string
+  quantity_required: number
+}
+
+interface OrderItemWithMenu {
+  quantity: number
+  menu_items: {
+    menu_item_inventory: InventoryRequirement[]
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { orderId } = await request.json()
@@ -37,10 +49,10 @@ export async function POST(request: NextRequest) {
     // Calculate total inventory deductions needed
     const inventoryDeductions: { [key: string]: number } = {}
 
-    orderItems?.forEach((orderItem: any) => {
+    orderItems?.forEach((orderItem: OrderItemWithMenu) => {
       const menuItemInventory = orderItem.menu_items.menu_item_inventory
       
-      menuItemInventory?.forEach((requirement: any) => {
+      menuItemInventory?.forEach((requirement: InventoryRequirement) => {
         const totalRequired = requirement.quantity_required * orderItem.quantity
         
         if (inventoryDeductions[requirement.inventory_item_id]) {

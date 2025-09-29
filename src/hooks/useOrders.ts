@@ -38,7 +38,7 @@ export function useOrders() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newOrderNotification, setNewOrderNotification] = useState<Order | null>(null)
-  
+
   // Use real-time connection
   const { lastEvent, isConnected } = useRealTimeOrders()
 
@@ -79,7 +79,11 @@ export function useOrders() {
   // Update order status
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-      const updateData: Record<string, any> = { 
+      const updateData: {
+        status: Order['status']
+        updated_at: string
+        cancelled_at?: string
+      } = {
         status,
         updated_at: new Date().toISOString()
       }
@@ -110,16 +114,16 @@ export function useOrders() {
       }
 
       // Update local state
-      setOrders(prev => prev.map(order => 
-        order.id === orderId 
-          ? { 
-              ...order, 
-              ...updateData,
-              // If marking as ready, update all items
-              order_items: status === 'ready' 
-                ? order.order_items.map(item => ({ ...item, item_status: 'ready' as const }))
-                : order.order_items
-            }
+      setOrders(prev => prev.map(order =>
+        order.id === orderId
+          ? {
+            ...order,
+            ...updateData,
+            // If marking as ready, update all items
+            order_items: status === 'ready'
+              ? order.order_items.map(item => ({ ...item, item_status: 'ready' as const }))
+              : order.order_items
+          }
           : order
       ))
     } catch (err) {
@@ -138,7 +142,7 @@ export function useOrders() {
       if (error) throw error
 
       // Find the order containing this item
-      const currentOrder = orders.find(order => 
+      const currentOrder = orders.find(order =>
         order.order_items.some(item => item.id === itemId)
       )
 
@@ -158,11 +162,11 @@ export function useOrders() {
             item.id === itemId ? { ...item, item_status: status } : item
           )
         }
-        
-        const allItemsReadyOrCompleted = updatedOrder.order_items.every(item => 
+
+        const allItemsReadyOrCompleted = updatedOrder.order_items.every(item =>
           item.item_status === 'ready' || item.item_status === 'completed'
         )
-        
+
         if (allItemsReadyOrCompleted) {
           console.log('All items ready/completed, auto-advancing order to ready status')
           await updateOrderStatus(currentOrder.id, 'ready')
@@ -177,20 +181,23 @@ export function useOrders() {
   const completeItemUnit = async (itemId: string) => {
     try {
       // First get the current item
-      const currentOrder = orders.find(order => 
+      const currentOrder = orders.find(order =>
         order.order_items.some(item => item.id === itemId)
       )
       const currentItem = currentOrder?.order_items.find(item => item.id === itemId)
-      
+
       if (!currentItem || !currentOrder) throw new Error('Item not found')
-      
+
       const newCompletedQuantity = (currentItem.completed_quantity || 0) + 1
       const isFullyCompleted = newCompletedQuantity >= currentItem.quantity
-      
-      const updateData: Record<string, any> = {
+
+      const updateData: {
+        completed_quantity: number
+        item_status?: OrderItem['item_status']
+      } = {
         completed_quantity: newCompletedQuantity
       }
-      
+
       if (isFullyCompleted) {
         updateData.item_status = 'completed'
       }
@@ -206,12 +213,12 @@ export function useOrders() {
       setOrders(prev => prev.map(order => ({
         ...order,
         order_items: order.order_items.map(item =>
-          item.id === itemId 
-            ? { 
-                ...item, 
-                completed_quantity: newCompletedQuantity,
-                item_status: isFullyCompleted ? 'completed' : item.item_status
-              } 
+          item.id === itemId
+            ? {
+              ...item,
+              completed_quantity: newCompletedQuantity,
+              item_status: isFullyCompleted ? 'completed' : item.item_status
+            }
             : item
         )
       })))
@@ -221,16 +228,16 @@ export function useOrders() {
         const updatedOrder = {
           ...currentOrder,
           order_items: currentOrder.order_items.map(item =>
-            item.id === itemId 
+            item.id === itemId
               ? { ...item, completed_quantity: newCompletedQuantity, item_status: 'completed' as const }
               : item
           )
         }
-        
-        const allItemsCompleted = updatedOrder.order_items.every(item => 
+
+        const allItemsCompleted = updatedOrder.order_items.every(item =>
           (item.completed_quantity || 0) >= item.quantity || item.item_status === 'completed'
         )
-        
+
         if (allItemsCompleted) {
           console.log('All items completed, auto-advancing order to ready status')
           await updateOrderStatus(currentOrder.id, 'ready')
@@ -252,12 +259,12 @@ export function useOrders() {
       if (error) throw error
 
       // Update local state
-      setOrders(prev => prev.map(order => 
+      setOrders(prev => prev.map(order =>
         order.id === orderId
           ? {
-              ...order,
-              order_items: order.order_items.map(item => ({ ...item, item_status: status }))
-            }
+            ...order,
+            order_items: order.order_items.map(item => ({ ...item, item_status: status }))
+          }
           : order
       ))
     } catch (err) {
@@ -270,7 +277,7 @@ export function useOrders() {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ 
+        .update({
           status: 'cancelled',
           cancelled_at: new Date().toISOString(),
           cancelled_reason: reason,
@@ -281,15 +288,15 @@ export function useOrders() {
       if (error) throw error
 
       // Update local state
-      setOrders(prev => prev.map(order => 
-        order.id === orderId 
-          ? { 
-              ...order, 
-              status: 'cancelled' as const,
-              cancelled_at: new Date().toISOString(),
-              cancelled_reason: reason,
-              updated_at: new Date().toISOString()
-            }
+      setOrders(prev => prev.map(order =>
+        order.id === orderId
+          ? {
+            ...order,
+            status: 'cancelled' as const,
+            cancelled_at: new Date().toISOString(),
+            cancelled_reason: reason,
+            updated_at: new Date().toISOString()
+          }
           : order
       ))
     } catch (err) {
@@ -302,7 +309,7 @@ export function useOrders() {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ 
+        .update({
           payment_status: paymentStatus,
           updated_at: new Date().toISOString()
         })
@@ -311,8 +318,8 @@ export function useOrders() {
       if (error) throw error
 
       // Update local state
-      setOrders(prev => prev.map(order => 
-        order.id === orderId 
+      setOrders(prev => prev.map(order =>
+        order.id === orderId
           ? { ...order, payment_status: paymentStatus, updated_at: new Date().toISOString() }
           : order
       ))
@@ -325,20 +332,20 @@ export function useOrders() {
   const playNotificationSound = () => {
     try {
       // Create a simple notification beep using Web Audio API
-      const audioContext = new (window.AudioContext || (window as Record<string, any>).webkitAudioContext)()
+      const audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
-      
+
       oscillator.connect(gainNode)
       gainNode.connect(audioContext.destination)
-      
+
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
       oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1)
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2)
-      
+
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-      
+
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.3)
     } catch (error) {
@@ -359,10 +366,10 @@ export function useOrders() {
 
     if (lastEvent.type === 'order_update' && lastEvent.order) {
       const updatedOrder = lastEvent.order
-      
+
       setOrders(prev => {
         const existingIndex = prev.findIndex(o => o.id === updatedOrder.id)
-        
+
         if (existingIndex >= 0) {
           // Update existing order
           const newOrders = [...prev]
@@ -373,7 +380,7 @@ export function useOrders() {
           if (lastEvent.event === 'INSERT') {
             setNewOrderNotification(updatedOrder)
             playNotificationSound()
-            
+
             // Clear notification after 5 seconds
             setTimeout(() => setNewOrderNotification(null), 5000)
           }
@@ -383,7 +390,8 @@ export function useOrders() {
     } else if (lastEvent.type === 'order_item_update' && lastEvent.order) {
       // Update order with modified items
       const updatedOrder = lastEvent.order
-      setOrders(prev => prev.map(order => 
+      console.log('Order item updated in real-time:', updatedOrder.id, lastEvent.itemId)
+      setOrders(prev => prev.map(order =>
         order.id === updatedOrder.id ? updatedOrder : order
       ))
     } else if (lastEvent.type === 'order_delete' && lastEvent.orderId) {
@@ -397,13 +405,25 @@ export function useOrders() {
     fetchOrders()
   }, [])
 
+  // Force connection check after 3 seconds if not connected
+  useEffect(() => {
+    const connectionCheck = setTimeout(() => {
+      if (!isConnected) {
+        console.log('⚠️ Real-time connection not established after 3s, forcing reconnect...')
+        // The useRealTimeOrders hook should handle reconnection automatically
+      }
+    }, 3000)
+
+    return () => clearTimeout(connectionCheck)
+  }, [isConnected])
+
   // Fallback polling if real-time is not connected
   useEffect(() => {
     if (!isConnected) {
-      console.log('Real-time not connected, using polling fallback')
+      console.log('📡 Real-time not connected, using polling fallback')
       const interval = setInterval(() => {
         fetchOrders()
-      }, 10000) // Poll every 10 seconds
+      }, 5000) // Poll every 5 seconds when disconnected
 
       return () => clearInterval(interval)
     }
@@ -429,7 +449,6 @@ export function useOrders() {
     updateOrderStatus,
     updateItemStatus,
     updateAllOrderItems,
-    completeItemUnit,
     cancelOrder,
     updatePaymentStatus,
     getOrdersByStatus,

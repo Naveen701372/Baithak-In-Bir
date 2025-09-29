@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
         try {
           const data = `data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`
           controller.enqueue(encoder.encode(data))
-        } catch (error) {
+        } catch {
           clearInterval(heartbeat)
           supabase.removeChannel(ordersChannel)
         }

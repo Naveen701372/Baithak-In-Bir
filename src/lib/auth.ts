@@ -21,7 +21,7 @@ export class AuthService {
 
       // For now, we'll use Supabase Auth for password verification
       // In production, you might want to use bcrypt for custom password hashing
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
       })
