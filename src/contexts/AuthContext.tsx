@@ -6,30 +6,67 @@ import { AuthService } from '@/lib/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Helper function to safely access localStorage
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window === 'undefined') return null
+    try {
+      return localStorage.getItem(key)
+    } catch (error) {
+      console.error('localStorage.getItem error:', error)
+      return null
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.setItem(key, value)
+    } catch (error) {
+      console.error('localStorage.setItem error:', error)
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.removeItem(key)
+    } catch (error) {
+      console.error('localStorage.removeItem error:', error)
+    }
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isClient, setIsClient] = useState(false)
 
-  // Check for existing session on mount
+  // Ensure we're on the client side before accessing localStorage
   useEffect(() => {
-    checkSession()
+    setIsClient(true)
   }, [])
+
+  // Check for existing session on mount (only on client)
+  useEffect(() => {
+    if (isClient) {
+      checkSession()
+    }
+  }, [isClient])
 
   const checkSession = async () => {
     try {
-      const sessionToken = localStorage.getItem('session_token')
+      const sessionToken = safeLocalStorage.getItem('session_token')
       if (sessionToken) {
         const userData = await AuthService.verifySession(sessionToken)
         if (userData) {
           setUser(userData)
         } else {
           // Invalid session, clean up
-          localStorage.removeItem('session_token')
+          safeLocalStorage.removeItem('session_token')
         }
       }
     } catch (error) {
       console.error('Session check error:', error)
-      localStorage.removeItem('session_token')
+      safeLocalStorage.removeItem('session_token')
     } finally {
       setLoading(false)
     }
@@ -41,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: userData, session } = await AuthService.login(credentials)
 
       // Store session token
-      localStorage.setItem('session_token', session.session_token)
+      safeLocalStorage.setItem('session_token', session.session_token)
       setUser(userData)
     } catch (error) {
       console.error('Login error:', error)
@@ -53,17 +90,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const sessionToken = localStorage.getItem('session_token')
+      const sessionToken = safeLocalStorage.getItem('session_token')
       if (sessionToken) {
         await AuthService.logout(sessionToken)
       }
 
-      localStorage.removeItem('session_token')
+      safeLocalStorage.removeItem('session_token')
       setUser(null)
     } catch (error) {
       console.error('Logout error:', error)
       // Still clear local state even if server logout fails
-      localStorage.removeItem('session_token')
+      safeLocalStorage.removeItem('session_token')
       setUser(null)
     }
   }
@@ -118,13 +155,24 @@ export function withAuth<P extends object>(
 ) {
   return function AuthenticatedComponent(props: P) {
     const { user, loading, hasPermission } = useAuth()
+    const [redirecting, setRedirecting] = useState(false)
 
-    if (loading) {
+    // Safe redirect function for client-side navigation
+    const safeRedirect = (url: string) => {
+      if (typeof window !== 'undefined' && !redirecting) {
+        setRedirecting(true)
+        window.location.href = url
+      }
+    }
+
+    if (loading || redirecting) {
       return (
         <div className="min-h-screen bg-white flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-light">Loading...</p>
+            <p className="text-gray-600 font-light">
+              {redirecting ? 'Redirecting...' : 'Loading...'}
+            </p>
           </div>
         </div>
       )
@@ -132,7 +180,7 @@ export function withAuth<P extends object>(
 
     if (!user) {
       // Redirect to login
-      window.location.href = '/admin/login'
+      safeRedirect('/admin/login')
       return null
     }
 
@@ -140,7 +188,7 @@ export function withAuth<P extends object>(
       // Special handling for staff members trying to access dashboard
       if (requiredPermission === 'dashboard' && user?.role === 'staff') {
         // Redirect staff to orders page
-        window.location.href = '/admin/orders'
+        safeRedirect('/admin/orders')
         return null
       }
 
@@ -150,7 +198,7 @@ export function withAuth<P extends object>(
             <h1 className="text-2xl font-light text-black mb-2">Access Denied</h1>
             <p className="text-gray-600 mb-8">You don&apos;t have permission to access this page.</p>
             <button
-              onClick={() => window.location.href = user?.permissions.orders ? '/admin/orders' : '/admin/login'}
+              onClick={() => safeRedirect(user?.permissions.orders ? '/admin/orders' : '/admin/login')}
               className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
             >
               Go to {user?.permissions.orders ? 'Orders' : 'Login'}

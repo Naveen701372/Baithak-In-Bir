@@ -41,8 +41,19 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     const [branding, setBranding] = useState<BrandingData>(defaultBranding)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [isClient, setIsClient] = useState(false)
+
+    // Ensure we're on the client side before making API calls
+    useEffect(() => {
+        setIsClient(true)
+    }, [])
 
     const fetchBranding = async () => {
+        if (typeof window === 'undefined') {
+            setLoading(false)
+            return
+        }
+
         try {
             setLoading(true)
             setError(null)
@@ -80,8 +91,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     }
 
     useEffect(() => {
-        fetchBranding()
-    }, [])
+        if (isClient) {
+            fetchBranding()
+        }
+    }, [isClient])
 
     const value: BrandingContextType = {
         branding,
@@ -110,6 +123,11 @@ export function useBrandingStyles() {
     const { branding } = useBranding()
 
     useEffect(() => {
+        // Only manipulate DOM on the client side
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+            return
+        }
+
         const root = document.documentElement
 
         // Inject CSS custom properties
@@ -120,10 +138,12 @@ export function useBrandingStyles() {
 
         // Cleanup function
         return () => {
-            root.style.removeProperty('--brand-primary')
-            root.style.removeProperty('--brand-secondary')
-            root.style.removeProperty('--brand-accent')
-            root.style.removeProperty('--brand-text')
+            if (typeof document !== 'undefined') {
+                root.style.removeProperty('--brand-primary')
+                root.style.removeProperty('--brand-secondary')
+                root.style.removeProperty('--brand-accent')
+                root.style.removeProperty('--brand-text')
+            }
         }
     }, [branding.colors])
 

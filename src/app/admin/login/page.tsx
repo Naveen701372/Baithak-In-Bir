@@ -1,20 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
   const router = useRouter()
   const { login, loading } = useAuth()
+  const shouldReduceMotion = useReducedMotion()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Ensure component is mounted before showing animations
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Create motion variants that respect reduced motion preference
+  const containerVariants = {
+    hidden: { opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: shouldReduceMotion ? { duration: 0 } : { duration: 0.5 }
+    }
+  }
+
+  const logoVariants = {
+    hidden: { scale: shouldReduceMotion ? 1 : 0 },
+    visible: {
+      scale: 1,
+      transition: shouldReduceMotion ? { duration: 0 } : { delay: 0.2, type: "spring", stiffness: 200 }
+    }
+  }
+
+  const formVariants = {
+    hidden: { opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: shouldReduceMotion ? { duration: 0 } : { delay: 0.3 }
+    }
+  }
+
+  const errorVariants = {
+    hidden: { opacity: 0, scale: shouldReduceMotion ? 1 : 0.95 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: shouldReduceMotion ? { duration: 0 } : {}
+    },
+    exit: {
+      opacity: 0,
+      scale: shouldReduceMotion ? 1 : 0.95,
+      transition: shouldReduceMotion ? { duration: 0 } : {}
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,22 +84,45 @@ export default function LoginPage() {
     }))
   }
 
+  // Only render animations after component is mounted to prevent hydration issues
+  if (!isMounted) {
+    return (
+      <div className="h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex flex-col justify-center p-4 -mt-16">
+          <div className="w-full max-w-md mx-auto">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock size={28} className="text-white" />
+              </div>
+              <h1 className="text-3xl font-light text-black mb-2">Baithak In Bir</h1>
+              <p className="text-gray-600 text-sm">Restaurant Management System</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <h2 className="text-xl font-medium text-black mb-6 text-center">Sign In</h2>
+              <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header/Branding Section */}
       <div className="flex-1 flex flex-col justify-center p-4 -mt-16">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
           className="w-full max-w-md mx-auto"
         >
           {/* Logo/Brand */}
           <div className="text-center mb-8">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              variants={logoVariants}
+              initial="hidden"
+              animate="visible"
               className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4"
             >
               <Lock size={28} className="text-white" />
@@ -62,23 +133,28 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            variants={formVariants}
+            initial="hidden"
+            animate="visible"
             className="bg-white rounded-lg shadow-lg p-8"
           >
             <h2 className="text-xl font-medium text-black mb-6 text-center">Sign In</h2>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center"
-              >
-                <AlertCircle size={16} className="text-red-500 mr-2" />
-                <span className="text-red-700 text-sm">{error}</span>
-              </motion.div>
-            )}
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div
+                  key="error"
+                  variants={errorVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center"
+                >
+                  <AlertCircle size={16} className="text-red-500 mr-2" />
+                  <span className="text-red-700 text-sm">{error}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email Field */}
@@ -132,7 +208,7 @@ export default function LoginPage() {
               <motion.button
                 type="submit"
                 disabled={loading}
-                whileTap={{ scale: 0.98 }}
+                whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                 className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
               >
                 {loading ? (
