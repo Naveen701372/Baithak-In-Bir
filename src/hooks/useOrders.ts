@@ -394,6 +394,12 @@ export function useOrders() {
   // Browser notification system
   const showBrowserNotification = (title: string, body: string, tag: string) => {
     try {
+      // Check if Notification API is supported
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        console.log('Notifications not supported on this browser')
+        return
+      }
+
       if (Notification.permission === 'granted') {
         const notification = new Notification(title, {
           body,
@@ -424,6 +430,8 @@ export function useOrders() {
           if (permission === 'granted') {
             showBrowserNotification(title, body, tag)
           }
+        }).catch(error => {
+          console.error('Error requesting notification permission:', error)
         })
       }
     } catch (error) {

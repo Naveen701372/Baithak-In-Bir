@@ -35,10 +35,10 @@ export function Header() {
             </Link>
           </nav>
 
-          {/* Mobile menu button */}
+          {/* Mobile menu button 
           <button className="md:hidden p-2 text-gray-700 hover:text-black">
             <Menu size={24} />
-          </button>
+          </button> */}
         </div>
       </div>
     </header>
